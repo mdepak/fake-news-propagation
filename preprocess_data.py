@@ -1,9 +1,12 @@
+import configparser
 import json
 import numpy as np
 import pickle
 
 from pymongo import MongoClient
 
+from util.constants import RETWEET_NODE, NEWS_ROOT_NODE, POST_NODE, REPLY_NODE
+from util.graph_dumper import dumps_graph
 from util.util import tweet_node, twitter_datetime_str_to_object
 
 
@@ -39,7 +42,7 @@ def construct_retweet_graph(root_node, retweets, user_friends_dict):
         retweet_node = tweet_node(tweet_id=retweet_tweet_id, text=retweet["text"],
                                   created_time=twitter_datetime_str_to_object(retweet["created_at"]),
                                   user_name=retweet["user"]["screen_name"], user_id=retweet_user_id,
-                                  news_id=root_node.news_id)
+                                  news_id=root_node.news_id, node_type=RETWEET_NODE)
 
         tweet_id_node_obj_dict[retweet_tweet_id] = retweet_node
         user_id_node_obj_dict[retweet_user_id] = retweet_node
@@ -98,11 +101,12 @@ def get_forest_from_tweets(news, user_id_friends_dict):
     if "text" in news["text_content"]:
         news_article_text_content = news["text_content"]["text"]
 
-    news_root_node = tweet_node(-1, news_article_text_content, None, None, None, news_id)
+    news_root_node = tweet_node(news_id, news_article_text_content, None, None, None, news_id, node_type=NEWS_ROOT_NODE)
 
     for tweet in tweets:
         node = tweet_node(tweet["tweet_id"], tweet["text"], tweet["created_at"], tweet["user_name"], tweet["user_id"],
-                          news_id)
+                          news_id, node_type=POST_NODE)
+
         tweet_id_node_dict[tweet["tweet_id"]] = node
         add_retweet_link(news_root_node, node)
         construct_retweet_graph(node, tweet["retweet"], user_id_friends_dict)
@@ -116,7 +120,7 @@ def add_reply_nodes(node: tweet_node, replies: list):
     # those info also to network
     for reply in replies:
         reply_node = tweet_node(reply["id"], reply["text"], int(reply["created_at"]), reply["username"], reply["user"],
-                                node.news_id)
+                                node.news_id, node_type=REPLY_NODE)
 
         node.add_reply_child(reply_node)
         reply_node.set_parent_node(node)
@@ -233,15 +237,73 @@ def analyze_height(news_graphs, type):
     print("avg", np.mean(heights))
 
 
+def dump_graphs(graphs):
+    params = {"node_color": {}}
+    params["node_color"][NEWS_ROOT_NODE] = "#77ab59"
+    params["node_color"][POST_NODE] = "#d2b4d7"
+    params["node_color"][RETWEET_NODE] = "#87cefa"
+    params["node_color"][REPLY_NODE] = "#735144"
+
+    tweet_info = dict()
+    news_graphs = []
+
+    for news in graphs:
+        [tweet_info_object_dict, nodes_list, edges_list] = dumps_graph(news, params)
+        graph = {"nodes": nodes_list, "edges": edges_list}
+        news = {"news_id": news.news_id, "graph": graph}
+
+        tweet_info.update(tweet_info_object_dict)
+        news_graphs.append(news)
+
+    return [news_graphs, tweet_info]
+
+
+def load_configuration(config_file):
+    """Gets the configuration file and returns the dictionary of configuration"""
+    filename = config_file
+    config = configparser.ConfigParser()
+    config.read(filename)
+
+    return config
+
+
+def get_database_connection(config):
+    host = config['MongoDB']['host']
+    port = int(config['MongoDB']['port'])
+    db_name = config['MongoDB']['database_name']
+
+    client = MongoClient(host, port)
+    db = client[db_name]
+    return db
+
+
+def write_graph_data_to_db(db, news_graphs, tweet_info):
+    for news in news_graphs:
+        db.news_prop_graphs.update({"news_id": news["news_id"]}, {"$set": news}, upsert=True)
+
+    # for tweet_id, tweet_info in tweet_info.items():
+    #     db.propagation_tweet_info.update({"tweet_id": tweet_id}, {"$set": tweet_info}, upsert=True)
+
+
 if __name__ == "__main__":
     politifact_fake_dataset_file = "data/politifact_fake_news_dataset.json"
     politifact_real_dataset_file = "/Users/deepak/Desktop/DMML/GitRepo/FakeNewsPropagation/data/politifact_real_news_dataset.json"
 
     politifact_fake_user_friends_file = "data/politifact_fake_user_friends_ids_complete.txt"
 
-    constuct_dataset_forests(politifact_fake_dataset_file, politifact_fake_user_friends_file)
+    # constuct_dataset_forests(politifact_fake_dataset_file, politifact_fake_user_friends_file)
 
     news_graphs = load_prop_graph("politifact", "fake")
 
-    analyze_height(news_graphs, "retweet")
-    analyze_height(news_graphs)
+    [news_graphs, tweet_info] = dump_graphs(news_graphs)
+    # json.dump(news_graphs, open("data/saved/news_graphs.json", "w"))
+    # json.dump(tweet_info, open("data/saved/tweet_info.json", "w"))
+
+    config = load_configuration("project.config")
+    db = get_database_connection(config)
+
+    write_graph_data_to_db(db, news_graphs, tweet_info)
+
+
+    # analyze_height(news_graphs, "retweet")
+    # analyze_height(news_graphs)
