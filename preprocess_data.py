@@ -3,6 +3,7 @@ import json
 import numpy as np
 import pickle
 
+import pandas
 from pymongo import MongoClient
 
 from util.constants import RETWEET_NODE, NEWS_ROOT_NODE, POST_NODE, REPLY_NODE
@@ -177,9 +178,17 @@ def get_user_friends_dict(user_friends_file):
     return user_id_friends_dict
 
 
-def constuct_dataset_forests(dataset_file, user_friends_file):
-    with open(dataset_file, "r") as file:
-        dataset = json.load(file)
+def constuct_dataset_forests(file_dir, out_dir, news_source, label):
+    dataset_file = "{}/{}_{}_news_dataset.json".format(file_dir, news_source, label)
+    user_friends_file = "{}/{}_{}_user_friends_ids_complete.txt".format(file_dir, news_source, label)
+    out_file = "{}/{}_{}_news_prop_graphs.pkl".format(out_dir, news_source, label)
+
+    # print(dataset_file)
+    # file = open(dataset_file, "r")
+    # file_contents = file.readlines()
+    # dataset = json.loads("\n".join(file_contents))
+    # file.close()
+    dataset = json.load(dataset_file)
 
     user_id_friends_dict = get_user_friends_dict(user_friends_file)
 
@@ -196,7 +205,7 @@ def constuct_dataset_forests(dataset_file, user_friends_file):
 
     print(len(news_graphs))
 
-    pickle.dump(news_graphs, open("data/saved/politifact_fake_news_prop_graphs.pkl", "wb"))
+    pickle.dump(news_graphs, open(out_file, "wb"))
 
     return news_graphs
 
@@ -277,6 +286,8 @@ def get_database_connection(config):
     return db
 
 
+# def get_networ
+
 def write_graph_data_to_db(db, news_graphs, tweet_info):
     for news in news_graphs:
         db.news_prop_graphs.update({"news_id": news["news_id"]}, {"$set": news}, upsert=True)
@@ -285,25 +296,43 @@ def write_graph_data_to_db(db, news_graphs, tweet_info):
     #     db.propagation_tweet_info.update({"tweet_id": tweet_id}, {"$set": tweet_info}, upsert=True)
 
 
+def dump_files_as_lines(dataset_file, out_file):
+    dataset = json.load(dataset_file)
+    with open(out_file, ) as file:
+        for news in dataset["dataset"]:
+            file.write(json.dumps(news) + "\n")
+
+
 if __name__ == "__main__":
     politifact_fake_dataset_file = "data/politifact_fake_news_dataset.json"
-    politifact_real_dataset_file = "/Users/deepak/Desktop/DMML/GitRepo/FakeNewsPropagation/data/politifact_real_news_dataset.json"
+    politifact_real_dataset_file = "data/politifact_real_news_dataset.json"
 
     politifact_fake_user_friends_file = "data/politifact_fake_user_friends_ids_complete.txt"
 
-    # constuct_dataset_forests(politifact_fake_dataset_file, politifact_fake_user_friends_file)
+    dump_files_as_lines(politifact_real_dataset_file, "data/politfact_real_news_dataset_format.json")
+    dump_files_as_lines(politifact_fake_dataset_file, "data/politfact_fake_news_dataset_format.json")
 
-    news_graphs = load_prop_graph("politifact", "fake")
 
-    [news_graphs, tweet_info] = dump_graphs(news_graphs)
+    # constuct_dataset_forests("data", "data/saved", "politifact", "fake")
+
+    # constuct_dataset_forests("data", "data/saved", "politifact", "real")
+    #
+    # fake_news_graphs = load_prop_graph("politifact", "fake")
+    # real_news_graphs = load_prop_graph("politifact", "real")
+    #
+    # analyze_height(fake_news_graphs)
+    # analyze_height(real_news_graphs)
+
+    # [fake_news_graphs, fake_tweet_info] = dump_graphs(fake_news_graphs)
+    #
+    # [real_news_graphs, real_tweet_info] = dump_graphs(real_news_graphs)
     # json.dump(news_graphs, open("data/saved/news_graphs.json", "w"))
     # json.dump(tweet_info, open("data/saved/tweet_info.json", "w"))
 
-    config = load_configuration("project.config")
-    db = get_database_connection(config)
+    # config = load_configuration("project.config")
+    # db = get_database_connection(config)
 
-    write_graph_data_to_db(db, news_graphs, tweet_info)
-
+    # write_graph_data_to_db(db, fake_news_graphs, real_tweet_info)
 
     # analyze_height(news_graphs, "retweet")
     # analyze_height(news_graphs)
