@@ -318,7 +318,7 @@ if __name__ == "__main__":
     # constuct_dataset_forests("data", "data/saved", "politifact", "real")
     #
     # fake_news_graphs = load_prop_graph("politifact", "fake")
-    # real_news_graphs = load_prop_graph("politifact", "real")
+    # real_news_graphs = load_p`rop_graph("politifact", "real")
     #
     # analyze_height(fake_news_graphs)
     # analyze_height(real_news_graphs)
