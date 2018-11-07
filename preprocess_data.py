@@ -1,9 +1,12 @@
 import configparser
 import json
+import mmap
+import os
+import re
+
 import numpy as np
 import pickle
 
-import pandas
 from pymongo import MongoClient
 
 from util.constants import RETWEET_NODE, NEWS_ROOT_NODE, POST_NODE, REPLY_NODE
@@ -21,7 +24,7 @@ def sort_retweet_object_by_time(retweets: list):
     return retweets
 
 
-def construct_retweet_graph(root_node, retweets, user_friends_dict):
+def construct_retweet_graph(root_node, retweets, user_id_friends_dict, user_name_friends_dict):
     retweets = sort_retweet_object_by_time(retweets)
 
     tweet_id_user_dict = dict()
@@ -29,13 +32,16 @@ def construct_retweet_graph(root_node, retweets, user_friends_dict):
 
     tweet_id_node_obj_dict = dict()
     user_id_node_obj_dict = dict()
+    user_name_node_obj_dict = dict()
 
-    users_so_far = set()
+    user_ids_so_far = set()
+    user_names_so_far = set()
 
     for retweet in retweets:
 
         retweet_user_id = retweet["user"]["id"]
         retweet_tweet_id = retweet["id"]
+        retweet_user_name = retweet["user"]["screen_name"]
 
         tweet_id_user_dict[retweet_tweet_id] = retweet_user_id
         user_id_tweet_id_dict[retweet_user_id] = retweet_tweet_id
@@ -50,27 +56,45 @@ def construct_retweet_graph(root_node, retweets, user_friends_dict):
 
         retweet_user_friends = set()
 
-        if retweet_user_id in user_friends_dict:
-            retweet_user_friends = set(user_friends_dict[retweet_user_id])
+        parent_node = None
+
+        if retweet_user_id in user_id_friends_dict:
+            retweet_user_friends = set(user_id_friends_dict[retweet_user_id])
+            potential_path_users = user_ids_so_far.intersection(retweet_user_friends)
+
+            # User retweeted a tweet from his friends
+            if len(potential_path_users) > 0:
+
+                parent_user = list(potential_path_users)[0]
+
+                parent_node = user_id_node_obj_dict[parent_user]
+
+            else:  # user tweeted original tweet
+                parent_node = root_node
+
+            add_retweet_link(parent_node, retweet_node)
+
+        elif retweet_user_name in user_name_friends_dict:
+            retweet_user_friends = set(user_name_friends_dict[retweet_user_name])
+            potential_path_users = user_names_so_far.intersection(retweet_user_friends)
+
+            # User retweeted a tweet from his friends
+            if len(potential_path_users) > 0:
+
+                parent_user = list(potential_path_users)[0]
+
+                parent_node = user_name_node_obj_dict[parent_user]
+
+            else:  # user tweeted original tweet
+                parent_node = root_node
+
+            add_retweet_link(parent_node, retweet_node)
+
         else:
             print("user id not found...")
 
-        potential_path_users = users_so_far.intersection(retweet_user_friends)
-
-        parent_node = None
-
-        # User retweeted a tweet from his friends
-        if len(potential_path_users) > 0:
-
-            parent_user = list(potential_path_users)[0]
-
-            parent_node = user_id_node_obj_dict[parent_user]
-            pass
-        else:  # user tweeted original tweet
-            parent_node = root_node
-
-        add_retweet_link(parent_node, retweet_node)
-        users_so_far.add(retweet_user_id)
+        user_ids_so_far.add(retweet_user_id)
+        user_names_so_far.add(retweet_user_name)
 
     return root_node
 
@@ -178,8 +202,18 @@ def get_user_friends_dict(user_friends_file):
     return user_id_friends_dict
 
 
+def get_news_articles(data_file):
+    news_articles = []
+
+    with open(data_file) as file:
+        for line in file:
+            news_articles.append(json.loads(line))
+
+    return news_articles
+
+
 def constuct_dataset_forests(file_dir, out_dir, news_source, label):
-    dataset_file = "{}/{}_{}_news_dataset.json".format(file_dir, news_source, label)
+    dataset_file = "{}/{}_{}_news_dataset_format.json".format(file_dir, news_source, label)
     user_friends_file = "{}/{}_{}_user_friends_ids_complete.txt".format(file_dir, news_source, label)
     out_file = "{}/{}_{}_news_prop_graphs.pkl".format(out_dir, news_source, label)
 
@@ -188,12 +222,12 @@ def constuct_dataset_forests(file_dir, out_dir, news_source, label):
     # file_contents = file.readlines()
     # dataset = json.loads("\n".join(file_contents))
     # file.close()
-    dataset = json.load(dataset_file)
+    # dataset = json.load(dataset_file)
+    # dataset = dataset["dataset"]
+
+    dataset = get_news_articles(dataset_file)
 
     user_id_friends_dict = get_user_friends_dict(user_friends_file)
-
-    dataset = dataset["dataset"]
-    # dataset = dataset[:10]
 
     news_graphs = []
 
@@ -297,10 +331,13 @@ def write_graph_data_to_db(db, news_graphs, tweet_info):
 
 
 def dump_files_as_lines(dataset_file, out_file):
-    dataset = json.load(dataset_file)
-    with open(out_file, ) as file:
+    dataset = json.load(open(dataset_file))
+    with open(out_file, "w") as file:
         for news in dataset["dataset"]:
             file.write(json.dumps(news) + "\n")
+
+    print("Dumped file : {}".format(out_file), flush=True)
+
 
 
 if __name__ == "__main__":
@@ -309,14 +346,13 @@ if __name__ == "__main__":
 
     politifact_fake_user_friends_file = "data/politifact_fake_user_friends_ids_complete.txt"
 
-    dump_files_as_lines(politifact_real_dataset_file, "data/politfact_real_news_dataset_format.json")
-    dump_files_as_lines(politifact_fake_dataset_file, "data/politfact_fake_news_dataset_format.json")
+    # dump_files_as_lines(politifact_real_dataset_file, "data/politfact_real_news_dataset_format.json")
+    # dump_files_as_lines(politifact_fake_dataset_file, "data/politfact_fake_news_dataset_format.json")
 
+    constuct_dataset_forests("data", "data/saved", "politifact", "fake")
 
-    # constuct_dataset_forests("data", "data/saved", "politifact", "fake")
+    constuct_dataset_forests("data", "data/saved", "politifact", "real")
 
-    # constuct_dataset_forests("data", "data/saved", "politifact", "real")
-    #
     # fake_news_graphs = load_prop_graph("politifact", "fake")
     # real_news_graphs = load_p`rop_graph("politifact", "real")
     #
