@@ -20,7 +20,7 @@ class tweet_node:
 
         self.reply_children = []
 
-        self.children = []
+        self.children = set()
 
         self.sentiment = None
         self.stance = None
@@ -32,6 +32,12 @@ class tweet_node:
 
         self.node_type = node_type
 
+    def __eq__(self, other):
+        return self.tweet_id == other.tweet_id
+
+    def __hash__(self):
+        return hash(self.tweet_id)
+
     def set_node_type(self, node_type):
         self.node_type = node_type
 
@@ -40,11 +46,11 @@ class tweet_node:
 
     def add_retweet_child(self, child_node):
         self.retweet_children.append(child_node)
-        self.children.append(child_node)
+        self.children.add(child_node)
 
     def add_reply_child(self, child_node):
         self.reply_children.append(child_node)
-        self.children.append(child_node)
+        self.children.add(child_node)
 
     def get_contents(self):
         return {"tweet_id": str(self.tweet_id),

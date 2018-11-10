@@ -5,7 +5,6 @@ import re
 import sys
 import traceback
 
-import pandas as pd
 from pymongo import UpdateOne
 
 from preprocess_data import load_configuration, get_database_connection
@@ -110,18 +109,84 @@ def get_user_to_fetch(all_user_file, user_ids_user_name_dict, db):
     json.dump({"user_names": list(user_names)}, open("politifact_user_names_to_collect.json", "w"))
 
 
+def chunks(l, n):
+    """Yield successive n-sized chunks from l."""
+    for i in range(0, len(l), n):
+        yield l[i:i + n]
+
+
+def dump_user_friends_data(db, user_names_file, dump_out_file):
+    user_names = json.load(open(user_names_file))["user_names"]
+    friends_collection = db.twitter_user_friends_collection
+    with open(dump_out_file, "w", 1000) as file:
+        for user_name_chunk in chunks(list(user_names), 10000):
+            for user_info in friends_collection.find({"user_name": {"$in": user_name_chunk}}, {"_id": 0}):
+                file.write(json.dumps(user_info))
+                file.write("\n")
+
+    print("Compeleted dumping {}".format(dump_out_file))
+
+
+def dump_user_id_friends_data(db, user_id_dict_file, dump_out_file):
+    user_id_name_dict = json.load(open(user_id_dict_file))
+
+    user_ids = user_id_name_dict.keys()
+
+    user_ids = [int(user_id) for user_id in user_ids]
+
+    user_ids = set(user_ids)
+
+    fake_friends_collection = db.fake_twitter_user_followees
+    real_friends_collection = db.real_twitter_user_followees
+
+    with open(dump_out_file, "w", 1000) as file:
+
+        for user_ids_chunk in chunks(list(user_ids), 10000):
+            for user_info in fake_friends_collection.find({"user_id": {"$in": user_ids_chunk}}, {"_id": 0}):
+                user_ids.remove(user_info["user_id"])
+                file.write(json.dumps(user_info) + "\n")
+
+        for user_ids_chunk in chunks(list(user_ids), 10000):
+            for user_info in real_friends_collection.find({"user_id": {"$in": user_ids_chunk}}, {"_id": 0}):
+                user_ids.remove(user_info["user_id"])
+                file.write(json.dumps(user_info) + "\n")
+
+    print("Compeleted dumping {}".format(dump_out_file))
+
+
 def get_friends_names(friends_file):
-    with open(friends_file, encoding="UTF-8") as file:
-        lines = file.readlines()
-        lines = [line.strip() for line in lines]
-        return lines[1:]
+    try:
+        with open(friends_file, encoding="UTF-8") as file:
+            lines = file.readlines()
+            lines = [line.strip() for line in lines]
+            return lines[1:]
+
+    except:
+        return []
 
 
 if __name__ == "__main__":
     config = load_configuration("project.config")
     db = get_database_connection(config)
-    get_user_to_fetch("data/format/politifact_prop_user_names.json", "data/format/politifact_user_id_user_name_dict.json",
-                      db)
+
+    # dump_user_friends_data(db, "data/format/politifact_prop_user_names.json",
+    #                        "data/social_network_data/politifact_user_names_friends_network.txt")
+    #
+    # dump_user_friends_data(db, "data/format/gossipcop_prop_user_names.json",
+    #                        "data/social_network_data/gossipcop_user_names_friends_network.txt")
+
+    dump_user_id_friends_data(db, "data/format/politifact_user_id_user_name_dict.json",
+                              "data/social_network_data/politifact_user_ids_friends_network.txt")
+
+    dump_user_id_friends_data(db, "data/format/gossipcop_user_id_user_name_dict.json",
+                              "data/social_network_data/gossipcop_user_ids_friends_network.txt")
+
+    # dump_user_friends_data(db, "data/format/politifact_prop_user_names.json",
+    #                        "data/social_network_data/politifact_user_names_friends_network.txt")
+
+    # get_user_to_fetch("data/format/politifact_prop_user_names.json",
+    #                   "data/format/politifact_user_id_user_name_dict.json",
+    #                   db)
 
     # dump_friends_file_as_lines("/home/dmahudes/FakeNewsPropagation/data/politifact_real_user_friends_ids_complete.txt",
     #                     "/home/dmahudes/FakeNewsPropagation/data/format/politifact_real_user_friends_ids_complete_format.txt")

@@ -7,6 +7,7 @@ import re
 import numpy as np
 import pickle
 
+from tqdm import tqdm
 from pymongo import MongoClient
 
 from util.constants import RETWEET_NODE, NEWS_ROOT_NODE, POST_NODE, REPLY_NODE
@@ -53,46 +54,35 @@ def construct_retweet_graph(root_node, retweets, user_id_friends_dict, user_name
 
         tweet_id_node_obj_dict[retweet_tweet_id] = retweet_node
         user_id_node_obj_dict[retweet_user_id] = retweet_node
+        user_name_node_obj_dict[retweet_user_name] = retweet_node
 
-        retweet_user_friends = set()
-
-        parent_node = None
+        parent_node = root_node  # user tweeted original tweet or the path info or network data not available
 
         if retweet_user_id in user_id_friends_dict:
-            retweet_user_friends = set(user_id_friends_dict[retweet_user_id])
+            retweet_user_friends = user_id_friends_dict[retweet_user_id]
             potential_path_users = user_ids_so_far.intersection(retweet_user_friends)
 
             # User retweeted a tweet from his friends
             if len(potential_path_users) > 0:
-
                 parent_user = list(potential_path_users)[0]
 
                 parent_node = user_id_node_obj_dict[parent_user]
 
-            else:  # user tweeted original tweet
-                parent_node = root_node
-
-            add_retweet_link(parent_node, retweet_node)
-
         elif retweet_user_name in user_name_friends_dict:
-            retweet_user_friends = set(user_name_friends_dict[retweet_user_name])
+            retweet_user_friends = user_name_friends_dict[retweet_user_name]
             potential_path_users = user_names_so_far.intersection(retweet_user_friends)
 
             # User retweeted a tweet from his friends
             if len(potential_path_users) > 0:
-
                 parent_user = list(potential_path_users)[0]
 
                 parent_node = user_name_node_obj_dict[parent_user]
 
-            else:  # user tweeted original tweet
-                parent_node = root_node
-
-            add_retweet_link(parent_node, retweet_node)
 
         else:
-            print("user id not found...")
+            print("user id : {} or user name : {} not found...".format(retweet_user_id, retweet_user_name), flush=True)
 
+        add_retweet_link(parent_node, retweet_node)
         user_ids_so_far.add(retweet_user_id)
         user_names_so_far.add(retweet_user_name)
 
@@ -112,7 +102,7 @@ def has_retweet_or_replies(tweets):
     return False
 
 
-def get_forest_from_tweets(news, user_id_friends_dict):
+def get_forest_from_tweets(news, user_id_friends_dict, user_name_friends_dict):
     news_id = news["id"]
     tweets = news["tweets"]
 
@@ -133,8 +123,11 @@ def get_forest_from_tweets(news, user_id_friends_dict):
                           news_id, node_type=POST_NODE)
 
         tweet_id_node_dict[tweet["tweet_id"]] = node
+
         add_retweet_link(news_root_node, node)
-        construct_retweet_graph(node, tweet["retweet"], user_id_friends_dict)
+        add_retweet_link(news_root_node, node)
+
+        construct_retweet_graph(node, tweet["retweet"], user_id_friends_dict, user_name_friends_dict)
         add_reply_nodes(node, tweet["reply"])
 
     return news_root_node
@@ -202,6 +195,17 @@ def get_user_friends_dict(user_friends_file):
     return user_id_friends_dict
 
 
+def get_user_name_friends_dict(user_name_friends_file):
+    user_name_friends_dict = dict()
+
+    with open(user_name_friends_file) as file:
+        for line in file:
+            json_obj = json.loads(line)
+            user_name_friends_dict[json_obj["user_name"]] = set(json_obj["friends_name"])
+
+    return user_name_friends_dict
+
+
 def get_news_articles(data_file):
     news_articles = []
 
@@ -212,9 +216,11 @@ def get_news_articles(data_file):
     return news_articles
 
 
-def constuct_dataset_forests(file_dir, out_dir, news_source, label):
-    dataset_file = "{}/{}_{}_news_dataset_format.json".format(file_dir, news_source, label)
-    user_friends_file = "{}/{}_{}_user_friends_ids_complete.txt".format(file_dir, news_source, label)
+def constuct_dataset_forests(enagement_file_dir, social_network_dir, out_dir, news_source, label):
+    dataset_file = "{}/{}_{}_news_dataset_format.json".format(enagement_file_dir, news_source, label)
+    user_ids_friends_file = "{}/{}_user_ids_friends_network.txt".format(social_network_dir, news_source)
+    user_name_friends_file = "{}/{}_user_names_friends_network.txt".format(social_network_dir, news_source)
+
     out_file = "{}/{}_{}_news_prop_graphs.pkl".format(out_dir, news_source, label)
 
     # print(dataset_file)
@@ -227,15 +233,21 @@ def constuct_dataset_forests(file_dir, out_dir, news_source, label):
 
     dataset = get_news_articles(dataset_file)
 
-    user_id_friends_dict = get_user_friends_dict(user_friends_file)
+    user_id_friends_dict = get_user_friends_dict(user_ids_friends_file)
+    user_name_friends_dict = get_user_name_friends_dict(user_name_friends_file)
+
+    print("Construction of forest : {} - {}".format(news_source, label))
+    print("No of user name - friends : {}".format(len(user_name_friends_dict)))
+    print("No. of user id - friends : {}".format(len(user_id_friends_dict)), flush=True)
 
     news_graphs = []
 
-    for news in dataset:
-        graph = get_forest_from_tweets(news, user_id_friends_dict)
+    for news in tqdm(dataset):
+        graph = get_forest_from_tweets(news, user_id_friends_dict, user_name_friends_dict)
 
         if graph:
             news_graphs.append(graph)
+            print("Added graph for news id : {}".format(graph.tweet_id), flush=True)
 
     print(len(news_graphs))
 
@@ -244,40 +256,9 @@ def constuct_dataset_forests(file_dir, out_dir, news_source, label):
     return news_graphs
 
 
-def find_tree_height(node, type="retweet"):
-    if node is None:
-        return 0
-
-    max_child_height = 0
-
-    children = []
-    if type == "retweet":
-        children = node.retweet_children
-    elif type == "reply":
-        children = node.reply_children
-    else:
-        children = node.children
-
-    for child in node.retweet_children:
-        max_child_height = max(max_child_height, find_tree_height(child, type))
-
-    return max_child_height + 1
-
-
 def load_prop_graph(news_source, news_label):
     news_graphs = pickle.load(open("data/saved/{}_{}_news_prop_graphs.pkl".format(news_source, news_label), "rb"))
     return news_graphs
-
-
-def analyze_height(news_graphs, type):
-    heights = []
-
-    for news_node in news_graphs:
-        heights.append(find_tree_height(news_node, type))
-
-    print("max", max(heights))
-    print("min", min(heights))
-    print("avg", np.mean(heights))
 
 
 def dump_graphs(graphs):
@@ -339,7 +320,6 @@ def dump_files_as_lines(dataset_file, out_file):
     print("Dumped file : {}".format(out_file), flush=True)
 
 
-
 if __name__ == "__main__":
     politifact_fake_dataset_file = "data/politifact_fake_news_dataset.json"
     politifact_real_dataset_file = "data/politifact_real_news_dataset.json"
@@ -349,9 +329,9 @@ if __name__ == "__main__":
     # dump_files_as_lines(politifact_real_dataset_file, "data/politfact_real_news_dataset_format.json")
     # dump_files_as_lines(politifact_fake_dataset_file, "data/politfact_fake_news_dataset_format.json")
 
-    constuct_dataset_forests("data", "data/saved", "politifact", "fake")
+    constuct_dataset_forests("data/engagement_data", "data/social_network_data", "data/saved", "politifact", "fake")
 
-    constuct_dataset_forests("data", "data/saved", "politifact", "real")
+    constuct_dataset_forests("data/engagement_data", "data/social_network_data", "data/saved", "politifact", "real")
 
     # fake_news_graphs = load_prop_graph("politifact", "fake")
     # real_news_graphs = load_p`rop_graph("politifact", "real")
