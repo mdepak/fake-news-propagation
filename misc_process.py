@@ -6,6 +6,7 @@ import sys
 import traceback
 
 from pymongo import UpdateOne
+from tqdm import tqdm
 
 from preprocess_data import load_configuration, get_database_connection
 
@@ -165,9 +166,40 @@ def get_friends_names(friends_file):
         return []
 
 
+def write_file_if_not_exist(output_folder, user_id_followee_json_data):
+    file_path = "{}/{}.json".format(output_folder, user_id_followee_json_data["user_id"])
+    if not os.path.exists(file_path):
+        json.dump(user_id_followee_json_data, open(file_path, "w"))
+
+
+def write_file_user_name_if_not_exist(output_folder, user_name_followee_json_data):
+    file_path = "{}/{}.json".format(output_folder, user_name_followee_json_data["user_name"])
+    if not os.path.exists(file_path):
+        json.dump(user_name_followee_json_data, open(file_path, "w"))
+
+
+def dump_social_network_user_id_single_file(input_ids_file, output_folder):
+    with open(input_ids_file) as file:
+        for line in tqdm(file):
+            write_file_if_not_exist(output_folder, json.loads(line))
+
+
+def dump_social_network_user_name_single_file(input_names_file, output_folder):
+    with open(input_names_file) as file:
+        for line in tqdm(file):
+            write_file_user_name_if_not_exist(output_folder, json.loads(line))
+
+
+
 if __name__ == "__main__":
     config = load_configuration("project.config")
     db = get_database_connection(config)
+
+    dump_social_network_user_id_single_file("data/social_network_data/gossipcop_user_ids_friends_network.txt",
+                            "/Users/deepak/Desktop/social_network_single_files/user_ids_files" )
+
+    dump_social_network_user_name_single_file("data/social_network_data/gossipcop_user_names_friends_network.txt",
+                                            "/Users/deepak/Desktop/social_network_single_files/user_names_files")
 
     # dump_user_friends_data(db, "data/format/politifact_prop_user_names.json",
     #                        "data/social_network_data/politifact_user_names_friends_network.txt")
@@ -175,11 +207,11 @@ if __name__ == "__main__":
     # dump_user_friends_data(db, "data/format/gossipcop_prop_user_names.json",
     #                        "data/social_network_data/gossipcop_user_names_friends_network.txt")
 
-    dump_user_id_friends_data(db, "data/format/politifact_user_id_user_name_dict.json",
-                              "data/social_network_data/politifact_user_ids_friends_network.txt")
-
-    dump_user_id_friends_data(db, "data/format/gossipcop_user_id_user_name_dict.json",
-                              "data/social_network_data/gossipcop_user_ids_friends_network.txt")
+    # dump_user_id_friends_data(db, "data/format/politifact_user_id_user_name_dict.json",
+    #                           "data/social_network_data/politifact_user_ids_friends_network.txt")
+    #
+    # dump_user_id_friends_data(db, "data/format/gossipcop_user_id_user_name_dict.json",
+    #                           "data/social_network_data/gossipcop_user_ids_friends_network.txt")
 
     # dump_user_friends_data(db, "data/format/politifact_prop_user_names.json",
     #                        "data/social_network_data/politifact_user_names_friends_network.txt")

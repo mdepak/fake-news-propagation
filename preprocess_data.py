@@ -25,6 +25,27 @@ def sort_retweet_object_by_time(retweets: list):
     return retweets
 
 
+def is_user_followees_info_file_present(folder, user_id):
+    file_path = "{}/{}.json".format(folder, str(user_id))
+    return os.path.exists(file_path)
+
+
+def get_user_id_followees(folder, user_id):
+    file_path = "{}/{}.json".format(folder, user_id)
+    try:
+        return set(json.load(open(file_path))["followees"])
+    except:
+        return set()
+
+
+def get_user_name_followees(folder, user_name):
+    file_path = "{}/{}.json".format(folder, user_name)
+    try:
+        return set(json.load(open(file_path))["friends_name"])
+    except:
+        return set()
+
+
 def construct_retweet_graph(root_node, retweets, user_id_friends_dict, user_name_friends_dict):
     retweets = sort_retweet_object_by_time(retweets)
 
@@ -37,6 +58,9 @@ def construct_retweet_graph(root_node, retweets, user_id_friends_dict, user_name
 
     user_ids_so_far = set()
     user_names_so_far = set()
+
+    user_ids_folder = "/Users/deepak/Desktop/social_network_single_files/user_ids_files"
+    user_name_folder = "/Users/deepak/Desktop/social_network_single_files/user_names_files"
 
     for retweet in retweets:
 
@@ -58,8 +82,10 @@ def construct_retweet_graph(root_node, retweets, user_id_friends_dict, user_name
 
         parent_node = root_node  # user tweeted original tweet or the path info or network data not available
 
-        if retweet_user_id in user_id_friends_dict:
-            retweet_user_friends = user_id_friends_dict[retweet_user_id]
+        # if retweet_user_id in user_id_friends_dict:
+        if is_user_followees_info_file_present(user_ids_folder, retweet_user_id):
+            # retweet_user_friends = user_id_friends_dict[retweet_user_id]
+            retweet_user_friends = get_user_id_followees(user_ids_folder, retweet_user_id)
             potential_path_users = user_ids_so_far.intersection(retweet_user_friends)
 
             # User retweeted a tweet from his friends
@@ -68,8 +94,10 @@ def construct_retweet_graph(root_node, retweets, user_id_friends_dict, user_name
 
                 parent_node = user_id_node_obj_dict[parent_user]
 
-        elif retweet_user_name in user_name_friends_dict:
-            retweet_user_friends = user_name_friends_dict[retweet_user_name]
+        # elif retweet_user_name in user_name_friends_dict:
+        elif is_user_followees_info_file_present(user_name_folder, retweet_user_name):
+            # retweet_user_friends = user_name_friends_dict[retweet_user_name]
+            retweet_user_friends = get_user_name_followees(user_name_folder, retweet_user_name)
             potential_path_users = user_names_so_far.intersection(retweet_user_friends)
 
             # User retweeted a tweet from his friends
@@ -77,7 +105,6 @@ def construct_retweet_graph(root_node, retweets, user_id_friends_dict, user_name
                 parent_user = list(potential_path_users)[0]
 
                 parent_node = user_name_node_obj_dict[parent_user]
-
 
         else:
             print("user id : {} or user name : {} not found...".format(retweet_user_id, retweet_user_name), flush=True)
@@ -91,6 +118,11 @@ def construct_retweet_graph(root_node, retweets, user_id_friends_dict, user_name
 
 def add_retweet_link(parent_node, child_node):
     parent_node.add_retweet_child(child_node)
+    child_node.set_parent_node(parent_node)
+
+
+def add_reply_link(parent_node: tweet_node, child_node: tweet_node):
+    parent_node.add_reply_child(child_node)
     child_node.set_parent_node(parent_node)
 
 
@@ -125,7 +157,7 @@ def get_forest_from_tweets(news, user_id_friends_dict, user_name_friends_dict):
         tweet_id_node_dict[tweet["tweet_id"]] = node
 
         add_retweet_link(news_root_node, node)
-        add_retweet_link(news_root_node, node)
+        add_reply_link(news_root_node, node)
 
         construct_retweet_graph(node, tweet["retweet"], user_id_friends_dict, user_name_friends_dict)
         add_reply_nodes(node, tweet["reply"])
@@ -137,16 +169,28 @@ def add_reply_nodes(node: tweet_node, replies: list):
     # TODO: As of now only reply of replies are considered...info about retweet of replies are also there...can add
     # those info also to network
     for reply in replies:
-        reply_node = tweet_node(reply["id"], reply["text"], int(reply["created_at"]), reply["username"], reply["user"],
-                                node.news_id, node_type=REPLY_NODE)
+        if reply:
+            if "username" in reply:
+                user_name = reply["username"]
+            else:
+                user_name = reply["user_name"]
 
-        node.add_reply_child(reply_node)
-        reply_node.set_parent_node(node)
+            if "user_id" in reply:
+                user_id = reply["user_id"]
+            else:
+                user_id = reply["user"]
 
-        if "engagement" in reply:
-            add_reply_nodes(reply_node, reply["engagement"]["tweet_replies"])
+            reply_node = tweet_node(reply["id"], reply["text"], int(reply["created_at"]), user_name, user_id, node.news_id,
+                                    node_type=REPLY_NODE)
 
+            node.add_reply_child(reply_node)
+            reply_node.set_parent_node(node)
 
+            if "engagement" in reply:
+                add_reply_nodes(reply_node, reply["engagement"]["tweet_replies"])
+
+        else:
+            print("---------REPLY NOT FOUND----------------")
 # def add_retweet_nodes(node: tweet_node, retweets: list, tweet_id_node_dict: dict):
 #     for retweet in retweets:
 #         retweet_node = tweet_node(retweet["id"], retweet["text"], twitter_datetime_str_to_object(retweet["created_at"]),
@@ -184,24 +228,31 @@ def add_reply_nodes(node: tweet_node, replies: list):
 #         reply_node.set_parent_node(root_node)
 
 
-def get_user_friends_dict(user_friends_file):
+def get_user_friends_dict(user_friends_file, id_reference_file):
     user_id_friends_dict = dict()
+    id_reference_dict = json.load(open(id_reference_file))
 
     with open(user_friends_file) as file:
         for line in file:
-            json_obj = json.loads(line)
-            user_id_friends_dict[json_obj["user_id"]] = json_obj["followees"]
+            try:
+                json_obj = json.loads(line)
+                if str(json_obj["user_id"]) in id_reference_dict:
+                    user_id_friends_dict[json_obj["user_id"]] = json_obj["followees"]
+            except:
+                print("Exception loading data")
 
     return user_id_friends_dict
 
 
-def get_user_name_friends_dict(user_name_friends_file):
+def get_user_name_friends_dict(user_name_friends_file, user_names_refernce_file):
     user_name_friends_dict = dict()
+    user_name_reference_set = set(json.load(open(user_names_refernce_file))["user_names"])
 
     with open(user_name_friends_file) as file:
         for line in file:
             json_obj = json.loads(line)
-            user_name_friends_dict[json_obj["user_name"]] = set(json_obj["friends_name"])
+            if json_obj["user_name"] in user_name_reference_set:
+                user_name_friends_dict[json_obj["user_name"]] = set(json_obj["friends_name"])
 
     return user_name_friends_dict
 
@@ -220,6 +271,8 @@ def constuct_dataset_forests(enagement_file_dir, social_network_dir, out_dir, ne
     dataset_file = "{}/{}_{}_news_dataset_format.json".format(enagement_file_dir, news_source, label)
     user_ids_friends_file = "{}/{}_user_ids_friends_network.txt".format(social_network_dir, news_source)
     user_name_friends_file = "{}/{}_user_names_friends_network.txt".format(social_network_dir, news_source)
+    id_reference_file = "data/format/{}_{}_user_id_user_name_dict.json".format(news_source, label)
+    user_names_refernce_file = "data/format/{}_{}_prop_user_names.json".format(news_source, label)
 
     out_file = "{}/{}_{}_news_prop_graphs.pkl".format(out_dir, news_source, label)
 
@@ -233,12 +286,17 @@ def constuct_dataset_forests(enagement_file_dir, social_network_dir, out_dir, ne
 
     dataset = get_news_articles(dataset_file)
 
-    user_id_friends_dict = get_user_friends_dict(user_ids_friends_file)
-    user_name_friends_dict = get_user_name_friends_dict(user_name_friends_file)
+    # user_id_friends_dict = get_user_friends_dict(user_ids_friends_file, id_reference_file)
+    # user_name_friends_dict = get_user_name_friends_dict(user_name_friends_file, user_names_refernce_file)
+
+    user_id_friends_dict = {}
+    user_name_friends_dict = {}
 
     print("Construction of forest : {} - {}".format(news_source, label))
     print("No of user name - friends : {}".format(len(user_name_friends_dict)))
     print("No. of user id - friends : {}".format(len(user_id_friends_dict)), flush=True)
+
+    input("Press Enter to continue...")
 
     news_graphs = []
 
@@ -260,6 +318,10 @@ def load_prop_graph(news_source, news_label):
     news_graphs = pickle.load(open("data/saved/{}_{}_news_prop_graphs.pkl".format(news_source, news_label), "rb"))
     return news_graphs
 
+
+def remove_prop_graph_noise(news_graphs, noise_ids):
+    noise_ids = set(noise_ids)
+    return [graph for graph in news_graphs if graph.tweet_id not in noise_ids]
 
 def dump_graphs(graphs):
     params = {"node_color": {}}
@@ -329,12 +391,15 @@ if __name__ == "__main__":
     # dump_files_as_lines(politifact_real_dataset_file, "data/politfact_real_news_dataset_format.json")
     # dump_files_as_lines(politifact_fake_dataset_file, "data/politfact_fake_news_dataset_format.json")
 
-    constuct_dataset_forests("data/engagement_data", "data/social_network_data", "data/saved", "politifact", "fake")
+    # constuct_dataset_forests("data/engagement_data", "data/social_network_data", "data/saved_new", "politifact", "fake")
 
     constuct_dataset_forests("data/engagement_data", "data/social_network_data", "data/saved", "politifact", "real")
 
+    # constuct_dataset_forests("data/engagement_data", "data/social_network_data", "data/saved", "gossipcop", "fake")
+    # constuct_dataset_forests("data/engagement_data", "data/social_network_data", "data/saved", "gossipcop", "real")
+
     # fake_news_graphs = load_prop_graph("politifact", "fake")
-    # real_news_graphs = load_p`rop_graph("politifact", "real")
+    # real_news_graphs = load_prop_graph("politifact", "real")
     #
     # analyze_height(fake_news_graphs)
     # analyze_height(real_news_graphs)
