@@ -148,6 +148,9 @@ def get_forest_from_tweets(news, user_id_friends_dict, user_name_friends_dict):
     if "text" in news["text_content"]:
         news_article_text_content = news["text_content"]["text"]
 
+    news_publication_time = ""
+
+
     news_root_node = tweet_node(news_id, news_article_text_content, None, None, None, news_id, node_type=NEWS_ROOT_NODE)
 
     for tweet in tweets:

@@ -5,10 +5,12 @@ import re
 import sys
 import traceback
 
+from newspaper import Article
 from pymongo import UpdateOne
 from tqdm import tqdm
+import newspaper
 
-from preprocess_data import load_configuration, get_database_connection
+from preprocess_data import load_configuration, get_database_connection, get_news_articles
 
 
 def dump_friends_file_as_lines(dataset_file, out_file):
@@ -190,17 +192,46 @@ def dump_social_network_user_name_single_file(input_names_file, output_folder):
             write_file_user_name_if_not_exist(output_folder, json.loads(line))
 
 
+def download_news_article(url):
+    news_article = Article(url)
+    news_article.download()
+    news_article.parse()
+    return news_article
+
+
+def get_news_articles_published_time(dataset_file):
+    dataset = get_news_articles(dataset_file)
+    news_id_publish_time = dict()
+    count =0
+    print("total no. of articles : {}".format(len(dataset)))
+    for news in dataset:
+        if "publish_date" in news["text_content"] and news["text_content"]["publish_date"]:
+            count += 1
+
+        # if "url" in news["text_content"]:
+        #     try:
+        #         news_article = download_news_article(news["text_content"]["url"].lstrip("'").rstrip("'"))
+        #         print("News id : {} publish data : {}".format(news_article, news_article.publish_date), flush=True)
+        #         news_id_publish_time[news["id"]] = news_article.publish_date.timestamp()
+        #     except Exception as ex:
+        #         print(ex)
+    print("old wrong present publish date count : {}".format(count))
+    return news_id_publish_time
+
 
 if __name__ == "__main__":
     config = load_configuration("project.config")
     db = get_database_connection(config)
 
-    dump_social_network_user_id_single_file("data/social_network_data/gossipcop_user_ids_friends_network.txt",
-                            "/Users/deepak/Desktop/social_network_single_files/user_ids_files" )
+    # dump_social_network_user_id_single_file("data/social_network_data/gossipcop_user_ids_friends_network.txt",
+    #                         "/Users/deepak/Desktop/social_network_single_files/user_ids_files" )
+    #
+    # dump_social_network_user_name_single_file("data/social_network_data/gossipcop_user_names_friends_network.txt",
+    #                                         "/Users/deepak/Desktop/social_network_single_files/user_names_files")
 
-    dump_social_network_user_name_single_file("data/social_network_data/gossipcop_user_names_friends_network.txt",
-                                            "/Users/deepak/Desktop/social_network_single_files/user_names_files")
+    news_id_publish_time = get_news_articles_published_time("data/engagement_data/politifact_fake_news_dataset_format.json")
 
+    print("publish news ids len  : {}".format(len(news_id_publish_time)))
     # dump_user_friends_data(db, "data/format/politifact_prop_user_names.json",
     #                        "data/social_network_data/politifact_user_names_friends_network.txt")
     #

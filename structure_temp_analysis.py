@@ -3,6 +3,7 @@ import time
 import numpy as np
 
 from preprocess_data import load_prop_graph, remove_prop_graph_noise
+from stat_test import perform_t_test, plot_normal_distributions
 from util.util import tweet_node
 
 
@@ -155,11 +156,17 @@ def get_num_cascades_by_time(prop_graphs: list, edge_type: str, time_interval_se
     return temporal_num_cascades
 
 
-def analyze_height(news_graphs: list, edge_type):
+def get_tree_heights(news_graphs: list, edge_type):
     heights = []
 
     for news_node in news_graphs:
         heights.append(get_tree_height(news_node, edge_type))
+
+    return heights
+
+
+def analyze_height(news_graphs: list, edge_type):
+    heights = get_tree_heights(news_graphs, edge_type)
 
     print("----HEIGHT-----")
 
@@ -180,23 +187,35 @@ def analyze_max_outdegree(news_graphs: list, edge_type):
     print("avg", np.mean(max_outdegrees))
 
 
-def analyze_cascade(news_graphs: list, edge_type):
-    heights = []
+def get_prop_graps_cascade_num(news_graphs: list, edge_type):
+    cascade_num = []
 
     for news_node in news_graphs:
-        heights.append(get_num_cascade(news_node, edge_type))
+        cascade_num.append(get_num_cascade(news_node, edge_type))
+
+    return cascade_num
+
+
+def analyze_cascade(news_graphs: list, edge_type):
+    cascade_num = get_prop_graps_cascade_num(news_graphs, edge_type)
 
     print("-----CASCADE-----")
-    print("max", max(heights))
-    print("min", min(heights))
-    print("avg", np.mean(heights))
+    print("max", max(cascade_num))
+    print("min", min(cascade_num))
+    print("avg", np.mean(cascade_num))
 
 
-def analyze_node_count(news_graphs: list, edge_type):
+def get_prop_graphs_node_counts(news_graphs: list, edge_type):
     node_counts = []
 
     for news_node in news_graphs:
         node_counts.append(get_nodes_count(news_node, edge_type))
+
+    return node_counts
+
+
+def analyze_node_count(news_graphs: list, edge_type):
+    node_counts = get_prop_graphs_node_counts(news_graphs, edge_type)
 
     print("----NODE SIZE-----")
 
@@ -276,31 +295,71 @@ def get_noise_news_ids():
         return [line.strip() for line in lines]
 
 
+def get_propagation_graphs(news_source):
+    fake_propagation_graphs = load_prop_graph(news_source, "fake")
+    real_propagation_graphs = load_prop_graph(news_source, "real")
+
+    print("Before filtering no. of FAKE prop graphs: {}".format(len(fake_propagation_graphs)))
+    print("Before filtering no. of REAL prop graphs: {}".format(len(real_propagation_graphs)))
+
+    fake_propagation_graphs = remove_prop_graph_noise(fake_propagation_graphs, get_noise_news_ids())
+    real_propagation_graphs = remove_prop_graph_noise(real_propagation_graphs, get_noise_news_ids())
+
+    print("After filtering no. of FAKE prop graphs: {}".format(len(fake_propagation_graphs)))
+    print("After filtering no. of REAL prop graphs: {}".format(len(real_propagation_graphs)))
+    print(flush=True)
+
+    return fake_propagation_graphs, real_propagation_graphs
+
+
+def find_nodes_out_of_time(news_graphs):
+    pass
+
+
+def equal_samples(sample1, sample2):
+    target_len = min(len(sample1), len(sample2))
+
+    np.random.shuffle(sample1)
+    np.random.shuffle(sample2)
+
+    return sample1[:target_len], sample2[:target_len]
+
+
+
 
 if __name__ == "__main__":
-    propagation_graphs = load_prop_graph("gossipcop", "fake")
+    fake_prop_graph, real_prop_graph = get_propagation_graphs("gossipcop")
 
-    print("Before filtering : {}".format(len(propagation_graphs)))
-    propagation_graphs = remove_prop_graph_noise(propagation_graphs, get_noise_news_ids())
-
-    print("After filtering : {}".format(len(propagation_graphs)))
-
-    exit(1)
+    # fake_prop_graph, real_prop_graph= equal_samples(fake_prop_graph ,real_prop_graph)
 
     RETWEET_EDGE = "retweet"
     REPLY_EDGE = "reply"
 
-    target_edge_type = REPLY_EDGE
+    target_edge_type = RETWEET_EDGE
 
-    analyze_height(propagation_graphs, target_edge_type)
+    fake_prop_features = get_tree_heights(fake_prop_graph, target_edge_type)
+    real_prop_features = get_tree_heights(real_prop_graph, target_edge_type)
+    #
+    # fake_prop_features = get_prop_graphs_node_counts(fake_prop_graph, target_edge_type)
+    # real_prop_features = get_prop_graphs_node_counts(real_prop_graph, target_edge_type)
+
+    # fake_prop_features = get_prop_graps_cascade_num(fake_prop_graph, target_edge_type)
+    # real_prop_features = get_prop_graps_cascade_num(real_prop_graph, target_edge_type)
+
+    perform_t_test(fake_prop_features, real_prop_features)
+
+    plot_normal_distributions(fake_prop_features, real_prop_features)
+
+    # analyze_height(propagation_graphs, target_edge_type)
+
     # analyze_height_by_time(propagation_graphs, target_edge_type, [60, 300, 600, 900, 18000, 36000, 72000])
 
-    analyze_node_count(propagation_graphs, target_edge_type)
+    # analyze_node_count(propagation_graphs, target_edge_type)
     # analyze_node_size_by_time(propagation_graphs, target_edge_type, [60, 300, 600, 900, 18000, 36000, 72000])
 
-    analyze_max_outdegree(propagation_graphs, target_edge_type)
+    # analyze_max_outdegree(propagation_graphs, target_edge_type)
 
-    analyze_cascade(propagation_graphs, target_edge_type)
+    # analyze_cascade(propagation_graphs, target_edge_type)
     # analyze_cascade_num_by_time(propagation_graphs, target_edge_type, [60, 300, 600, 900, 18000, 36000, 72000] )
 
     # exit(1)
