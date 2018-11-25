@@ -10,19 +10,12 @@ import pickle
 from tqdm import tqdm
 from pymongo import MongoClient
 
+from analysis_util import sort_retweet_object_by_time
 from util.constants import RETWEET_NODE, NEWS_ROOT_NODE, POST_NODE, REPLY_NODE
 from util.graph_dumper import dumps_graph
 from util.util import tweet_node, twitter_datetime_str_to_object
 
 
-def get_epoch_timestamp_from_retweet(retweet):
-    return twitter_datetime_str_to_object(retweet["created_at"])
-
-
-def sort_retweet_object_by_time(retweets: list):
-    retweets.sort(key=get_epoch_timestamp_from_retweet)
-
-    return retweets
 
 
 def is_user_followees_info_file_present(folder, user_id):
@@ -315,16 +308,6 @@ def constuct_dataset_forests(enagement_file_dir, social_network_dir, out_dir, ne
     pickle.dump(news_graphs, open(out_file, "wb"))
 
     return news_graphs
-
-
-def load_prop_graph(news_source, news_label):
-    news_graphs = pickle.load(open("data/saved/{}_{}_news_prop_graphs.pkl".format(news_source, news_label), "rb"))
-    return news_graphs
-
-
-def remove_prop_graph_noise(news_graphs, noise_ids):
-    noise_ids = set(noise_ids)
-    return [graph for graph in news_graphs if graph.tweet_id not in noise_ids]
 
 def dump_graphs(graphs):
     params = {"node_color": {}}

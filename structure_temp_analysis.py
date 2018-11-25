@@ -2,9 +2,22 @@ import time
 
 import numpy as np
 
-from preprocess_data import load_prop_graph, remove_prop_graph_noise
+from analysis_util import get_propagation_graphs, equal_samples
 from stat_test import perform_t_test, plot_normal_distributions
 from util.util import tweet_node
+
+
+def get_post_tweet_deepest_cascade(prop_graph : tweet_node):
+    max_height = 0
+    max_height_node = None
+
+    for node in prop_graph.children:
+        height = get_tree_height(node)
+        if height > max_height:
+            max_height = height
+            max_height_node = node
+
+    return max_height_node, max_height
 
 
 def get_num_cascade(node: tweet_node, edge_type="retweet"):
@@ -289,59 +302,26 @@ def get_first_post_time(node: tweet_node):
     return first_post_time
 
 
-def get_noise_news_ids():
-    with open("data/news_id_ignore_list") as file:
-        lines = file.readlines()
-        return [line.strip() for line in lines]
-
-
-def get_propagation_graphs(news_source):
-    fake_propagation_graphs = load_prop_graph(news_source, "fake")
-    real_propagation_graphs = load_prop_graph(news_source, "real")
-
-    print("Before filtering no. of FAKE prop graphs: {}".format(len(fake_propagation_graphs)))
-    print("Before filtering no. of REAL prop graphs: {}".format(len(real_propagation_graphs)))
-
-    fake_propagation_graphs = remove_prop_graph_noise(fake_propagation_graphs, get_noise_news_ids())
-    real_propagation_graphs = remove_prop_graph_noise(real_propagation_graphs, get_noise_news_ids())
-
-    print("After filtering no. of FAKE prop graphs: {}".format(len(fake_propagation_graphs)))
-    print("After filtering no. of REAL prop graphs: {}".format(len(real_propagation_graphs)))
-    print(flush=True)
-
-    return fake_propagation_graphs, real_propagation_graphs
-
-
 def find_nodes_out_of_time(news_graphs):
     pass
 
 
-def equal_samples(sample1, sample2):
-    target_len = min(len(sample1), len(sample2))
-
-    np.random.shuffle(sample1)
-    np.random.shuffle(sample2)
-
-    return sample1[:target_len], sample2[:target_len]
-
-
-
 
 if __name__ == "__main__":
-    fake_prop_graph, real_prop_graph = get_propagation_graphs("gossipcop")
+    fake_prop_graph, real_prop_graph = get_propagation_graphs("politifact")
 
-    # fake_prop_graph, real_prop_graph= equal_samples(fake_prop_graph ,real_prop_graph)
+    fake_prop_graph, real_prop_graph= equal_samples(fake_prop_graph, real_prop_graph)
 
     RETWEET_EDGE = "retweet"
     REPLY_EDGE = "reply"
 
     target_edge_type = RETWEET_EDGE
 
-    fake_prop_features = get_tree_heights(fake_prop_graph, target_edge_type)
-    real_prop_features = get_tree_heights(real_prop_graph, target_edge_type)
+    # fake_prop_features = get_tree_heights(fake_prop_graph, target_edge_type)
+    # real_prop_features = get_tree_heights(real_prop_graph, target_edge_type)
     #
-    # fake_prop_features = get_prop_graphs_node_counts(fake_prop_graph, target_edge_type)
-    # real_prop_features = get_prop_graphs_node_counts(real_prop_graph, target_edge_type)
+    fake_prop_features = get_prop_graphs_node_counts(fake_prop_graph, target_edge_type)
+    real_prop_features = get_prop_graphs_node_counts(real_prop_graph, target_edge_type)
 
     # fake_prop_features = get_prop_graps_cascade_num(fake_prop_graph, target_edge_type)
     # real_prop_features = get_prop_graps_cascade_num(real_prop_graph, target_edge_type)
