@@ -26,19 +26,19 @@ def get_avg_time_between_replies(prop_graph: tweet_node):
     q = queue.Queue()
 
     q.put(prop_graph)
-    retweet_diff_values = list()
+    reply_diff_values = list()
 
     while q.qsize() != 0:
         node = q.get()
-        for child in node.children:
+        for child in node.reply_children:
             q.put(child)
-            if node.node_type == RETWEET_NODE and child.node_type == REPLY_NODE:
-                retweet_diff_values.append(child.created_time - node.created_time)
+            if node.node_type == REPLY_NODE and child.node_type == REPLY_NODE:
+                reply_diff_values.append(child.created_time - node.created_time)
 
-    if len(retweet_diff_values) == 0:
+    if len(reply_diff_values) == 0:
         return 0
     else:
-        return np.mean(np.array(retweet_diff_values))
+        return np.mean(np.array(reply_diff_values))
 
 
 def get_avg_time_between_retweets(prop_graph: tweet_node):
@@ -71,6 +71,40 @@ def get_last_retweet_by_time(news_graph: tweet_node):
         max_time = max(max_time, news_graph.created_time)
 
     return max_time
+
+
+def get_last_reply_by_time(news_graph: tweet_node):
+    max_time = 0
+
+    if news_graph:
+        for node in news_graph.retweet_children:
+            max_time = max(max_time, get_last_retweet_by_time(node))
+
+    if news_graph and news_graph.created_time is not None and news_graph.node_type == REPLY_NODE:
+        max_time = max(max_time, news_graph.created_time)
+
+    return max_time
+
+
+def get_time_diff_post_time_last_reply_time_deepest_cascade(news_graph: tweet_node):
+    deep_cascade, max_height = get_post_tweet_deepest_cascade(news_graph)
+    first_post_time = deep_cascade.created_time
+
+    last_reply_time = get_last_reply_by_time(deep_cascade)
+
+    if last_reply_time == 0:
+        return 0
+    else:
+        return last_reply_time - first_post_time
+
+
+def get_time_diff_first_post_last_reply(news_graph: tweet_node):
+    first_post_time = get_first_post_time(news_graph)
+    last_reply_time = get_last_reply_by_time(news_graph)
+    if last_reply_time == 0:
+        return 0
+    else:
+        return last_reply_time - first_post_time
 
 
 def get_first_retweet_by_time(news_graph: tweet_node):
@@ -184,7 +218,11 @@ if __name__ == "__main__":
     # feature_name = "avg_time_between_retweets"
 
     # feature_name = "get_avg_retweet_time_deepest_cascade"
-    feature_name = "get_time_diff_post_time_last_retweet_time_deepest_cascade"
+    # feature_name = "get_time_diff_post_time_last_retweet_time_deepest_cascade"
+    # feature_name = "get_avg_time_between_replies"
+    # feature_name = "get_time_diff_first_post_last_reply"
+    feature_name = "get_time_diff_post_time_last_reply_time_deepest_cascade"
+
 
     # function_ref = get_average_time_between_post_tweets
     # function_ref = get_time_diff_first_last_post_tweet
@@ -192,7 +230,10 @@ if __name__ == "__main__":
     # function_ref = get_time_diff_first_post_first_retweet
     # function_ref = get_avg_time_between_retweets
     # function_ref = get_avg_retweet_time_deepest_cascade
-    function_ref = get_time_diff_post_time_last_retweet_time_deepest_cascade
+    # function_ref = get_time_diff_post_time_last_retweet_time_deepest_cascade
+    # function_ref = get_avg_time_between_replies
+    # function_ref = get_time_diff_first_post_last_reply
+    function_ref = get_time_diff_post_time_last_reply_time_deepest_cascade
 
     # count_graph_with_no_retweets(fake_prop_graph)
     # count_graph_with_no_retweets(real_prop_graph)
