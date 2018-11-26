@@ -1,6 +1,5 @@
 import networkx as nx
 
-from preprocess_data import load_prop_graph
 from util.util import tweet_node
 
 
@@ -20,6 +19,7 @@ def construct_networkxx_graph(graph: tweet_node, network_type):
 
     return G
 
+
 def add_networkxx_retweet_data(nx_graph: nx.DiGraph, node: tweet_node):
     nx_graph.add_node(node.tweet_id)
 
@@ -34,6 +34,3 @@ def add_network_reply_data(nx_graph: nx.DiGraph, node: tweet_node):
     for child in node.reply_children:
         add_network_reply_data(nx_graph, child)
         nx_graph.add_edge(node.tweet_id, child.tweet_id)
-
-
-

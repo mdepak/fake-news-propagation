@@ -2,12 +2,15 @@ import time
 
 import numpy as np
 
-from analysis_util import get_propagation_graphs, equal_samples
+from analysis_util import get_propagation_graphs, equal_samples, get_numpy_array
 from stat_test import perform_t_test, plot_normal_distributions
 from util.util import tweet_node
 
+RETWEET_EDGE = "retweet"
+REPLY_EDGE = "reply"
 
-def get_post_tweet_deepest_cascade(prop_graph : tweet_node):
+
+def get_post_tweet_deepest_cascade(prop_graph: tweet_node):
     max_height = 0
     max_height_node = None
 
@@ -188,12 +191,17 @@ def analyze_height(news_graphs: list, edge_type):
     print("avg", np.mean(heights))
 
 
-def analyze_max_outdegree(news_graphs: list, edge_type):
+def get_max_outdegrees(news_graphs: list, edge_type):
     max_outdegrees = []
 
     for news_node in news_graphs:
         max_outdegrees.append(get_max_outdegree(news_node, edge_type))
 
+    return max_outdegrees
+
+
+def analyze_max_outdegree(news_graphs: list, edge_type):
+    max_outdegrees = get_max_outdegrees(news_graphs, edge_type)
     print("-----MAX - OUT DEGREE -----")
     print("max", max(max_outdegrees))
     print("min", min(max_outdegrees))
@@ -306,14 +314,30 @@ def find_nodes_out_of_time(news_graphs):
     pass
 
 
+def get_all_structural_features(news_graphs):
+    all_features = []
+    target_edge_type = RETWEET_EDGE
+
+    retweet_function_references = [get_tree_heights, get_prop_graphs_node_counts, get_prop_graps_cascade_num,
+                                   get_max_outdegrees]
+    for function_ref in retweet_function_references:
+        features = function_ref(news_graphs, target_edge_type)
+        all_features.append(features)
+
+    target_edge_type = REPLY_EDGE
+
+    reply_function_references = [get_tree_heights, get_prop_graphs_node_counts, get_max_outdegrees]
+    for function_ref in reply_function_references:
+        features = function_ref(news_graphs, target_edge_type)
+        all_features.append(features)
+
+    return np.transpose(get_numpy_array(all_features))
+
 
 if __name__ == "__main__":
     fake_prop_graph, real_prop_graph = get_propagation_graphs("politifact")
 
-    fake_prop_graph, real_prop_graph= equal_samples(fake_prop_graph, real_prop_graph)
-
-    RETWEET_EDGE = "retweet"
-    REPLY_EDGE = "reply"
+    fake_prop_graph, real_prop_graph = equal_samples(fake_prop_graph, real_prop_graph)
 
     target_edge_type = RETWEET_EDGE
 

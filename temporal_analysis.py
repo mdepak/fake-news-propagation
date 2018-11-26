@@ -2,7 +2,7 @@ import queue
 
 import numpy as np
 
-from analysis_util import sort_tweet_node_object_by_created_time, get_propagation_graphs, equal_samples
+from analysis_util import sort_tweet_node_object_by_created_time, get_propagation_graphs, equal_samples, get_numpy_array
 from stat_test import perform_t_test
 from structure_temp_analysis import get_first_post_time, get_post_tweet_deepest_cascade
 from util.constants import RETWEET_NODE, REPLY_NODE
@@ -205,6 +205,25 @@ def count_graph_with_no_retweets(news_graphs: list):
     print("Graph with no retweets : {}".format(count))
 
 
+def get_all_temporal_features(prop_graphs):
+    function_refs = [get_average_time_between_post_tweets, get_time_diff_first_last_post_tweet,
+                     get_time_diff_first_post_last_retweet,
+
+                     get_time_diff_first_post_first_retweet, get_avg_time_between_retweets,
+                     get_avg_retweet_time_deepest_cascade,
+                     get_time_diff_post_time_last_retweet_time_deepest_cascade, get_avg_time_between_replies,
+                     get_time_diff_first_post_last_reply,
+                     get_time_diff_post_time_last_reply_time_deepest_cascade]
+
+    all_features = []
+
+    for function_reference in function_refs:
+        features_set = get_stats_for_features(prop_graphs, function_reference, print=False, feature_name=None)
+        all_features.append(features_set)
+
+    return np.transpose(get_numpy_array(all_features))
+
+
 if __name__ == "__main__":
     fake_prop_graph, real_prop_graph = get_propagation_graphs("politifact")
     fake_prop_graph, real_prop_graph = equal_samples(fake_prop_graph, real_prop_graph)
@@ -222,7 +241,6 @@ if __name__ == "__main__":
     # feature_name = "get_avg_time_between_replies"
     # feature_name = "get_time_diff_first_post_last_reply"
     feature_name = "get_time_diff_post_time_last_reply_time_deepest_cascade"
-
 
     # function_ref = get_average_time_between_post_tweets
     # function_ref = get_time_diff_first_last_post_tweet

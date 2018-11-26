@@ -62,3 +62,11 @@ def get_propagation_graphs(news_source):
     print(flush=True)
 
     return fake_propagation_graphs, real_propagation_graphs
+
+
+def get_numpy_array(list_of_list):
+    np_array_lists = []
+    for list_obj in list_of_list:
+        np_array_lists.append(np.array(list_obj))
+
+    return np.array(np_array_lists)
