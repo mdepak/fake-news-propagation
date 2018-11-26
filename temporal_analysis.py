@@ -30,8 +30,10 @@ def get_avg_time_between_replies(prop_graph: tweet_node):
 
     while q.qsize() != 0:
         node = q.get()
-        for child in node.reply_children:
+
+        for child in node.children:
             q.put(child)
+
             if node.node_type == REPLY_NODE and child.node_type == REPLY_NODE:
                 reply_diff_values.append(child.created_time - node.created_time)
 
@@ -205,15 +207,25 @@ def count_graph_with_no_retweets(news_graphs: list):
     print("Graph with no retweets : {}".format(count))
 
 
-def get_all_temporal_features(prop_graphs):
-    function_refs = [get_average_time_between_post_tweets, get_time_diff_first_last_post_tweet,
-                     get_time_diff_first_post_last_retweet,
+def get_all_temporal_features(prop_graphs, micro_features, macro_features):
+    macro_features_functions = [get_average_time_between_post_tweets, get_time_diff_first_last_post_tweet,
+                                get_time_diff_first_post_last_retweet,
 
-                     get_time_diff_first_post_first_retweet, get_avg_time_between_retweets,
-                     get_avg_retweet_time_deepest_cascade,
-                     get_time_diff_post_time_last_retweet_time_deepest_cascade, get_avg_time_between_replies,
-                     get_time_diff_first_post_last_reply,
-                     get_time_diff_post_time_last_reply_time_deepest_cascade]
+                                get_time_diff_first_post_first_retweet, get_avg_time_between_retweets,
+                                get_avg_retweet_time_deepest_cascade,
+                                get_time_diff_post_time_last_retweet_time_deepest_cascade]
+
+    micro_features_functions = [get_avg_time_between_replies,
+                                get_time_diff_first_post_last_reply,
+                                get_time_diff_post_time_last_reply_time_deepest_cascade]
+
+    function_refs = []
+
+    if macro_features:
+        function_refs.extend(macro_features_functions)
+
+    if micro_features:
+        function_refs.extend(micro_features_functions)
 
     all_features = []
 
@@ -238,9 +250,9 @@ if __name__ == "__main__":
 
     # feature_name = "get_avg_retweet_time_deepest_cascade"
     # feature_name = "get_time_diff_post_time_last_retweet_time_deepest_cascade"
-    # feature_name = "get_avg_time_between_replies"
+    feature_name = "get_avg_time_between_replies"
     # feature_name = "get_time_diff_first_post_last_reply"
-    feature_name = "get_time_diff_post_time_last_reply_time_deepest_cascade"
+    # feature_name = "get_time_diff_post_time_last_reply_time_deepest_cascade"
 
     # function_ref = get_average_time_between_post_tweets
     # function_ref = get_time_diff_first_last_post_tweet
@@ -249,9 +261,9 @@ if __name__ == "__main__":
     # function_ref = get_avg_time_between_retweets
     # function_ref = get_avg_retweet_time_deepest_cascade
     # function_ref = get_time_diff_post_time_last_retweet_time_deepest_cascade
-    # function_ref = get_avg_time_between_replies
+    function_ref = get_avg_time_between_replies
     # function_ref = get_time_diff_first_post_last_reply
-    function_ref = get_time_diff_post_time_last_reply_time_deepest_cascade
+    # function_ref = get_time_diff_post_time_last_reply_time_deepest_cascade
 
     # count_graph_with_no_retweets(fake_prop_graph)
     # count_graph_with_no_retweets(real_prop_graph)

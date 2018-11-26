@@ -314,22 +314,24 @@ def find_nodes_out_of_time(news_graphs):
     pass
 
 
-def get_all_structural_features(news_graphs):
+def get_all_structural_features(news_graphs, micro_features, macro_features):
     all_features = []
     target_edge_type = RETWEET_EDGE
 
-    retweet_function_references = [get_tree_heights, get_prop_graphs_node_counts, get_prop_graps_cascade_num,
-                                   get_max_outdegrees]
-    for function_ref in retweet_function_references:
-        features = function_ref(news_graphs, target_edge_type)
-        all_features.append(features)
+    if macro_features:
+        retweet_function_references = [get_tree_heights, get_prop_graphs_node_counts, get_prop_graps_cascade_num,
+                                       get_max_outdegrees]
+        for function_ref in retweet_function_references:
+            features = function_ref(news_graphs, target_edge_type)
+            all_features.append(features)
 
-    target_edge_type = REPLY_EDGE
+    if micro_features:
+        target_edge_type = REPLY_EDGE
 
-    reply_function_references = [get_tree_heights, get_prop_graphs_node_counts, get_max_outdegrees]
-    for function_ref in reply_function_references:
-        features = function_ref(news_graphs, target_edge_type)
-        all_features.append(features)
+        reply_function_references = [get_tree_heights, get_prop_graphs_node_counts, get_max_outdegrees]
+        for function_ref in reply_function_references:
+            features = function_ref(news_graphs, target_edge_type)
+            all_features.append(features)
 
     return np.transpose(get_numpy_array(all_features))
 
