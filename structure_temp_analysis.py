@@ -23,6 +23,7 @@ def get_post_tweet_deepest_cascade(prop_graph: tweet_node):
     return max_height_node, max_height
 
 
+
 def get_num_cascade(node: tweet_node, edge_type="retweet"):
     if edge_type == "retweet":
         return len(node.retweet_children)
@@ -47,6 +48,18 @@ def get_temp_num_cascade(node: tweet_node, edge_type="retweet", max_time=time.ti
             cascade_count += 1
 
     return cascade_count
+
+
+def get_node_count_deepest_cascade(news_graphs:tweet_node, edge_type):
+
+    node_counts = []
+
+    for prop_graph in news_graphs:
+        max_height_node, max_height = get_post_tweet_deepest_cascade(prop_graph)
+
+        node_counts.append(get_nodes_count(max_height_node, edge_type))
+
+    return node_counts
 
 
 def get_max_outdegree(node: tweet_node, edge_type="retweet"):
@@ -346,8 +359,11 @@ if __name__ == "__main__":
     # fake_prop_features = get_tree_heights(fake_prop_graph, target_edge_type)
     # real_prop_features = get_tree_heights(real_prop_graph, target_edge_type)
     #
-    fake_prop_features = get_prop_graphs_node_counts(fake_prop_graph, target_edge_type)
-    real_prop_features = get_prop_graphs_node_counts(real_prop_graph, target_edge_type)
+    # fake_prop_features = get_prop_graphs_node_counts(fake_prop_graph, target_edge_type)
+    # real_prop_features = get_prop_graphs_node_counts(real_prop_graph, target_edge_type)
+
+    fake_prop_features = get_node_count_deepest_cascade(fake_prop_graph, target_edge_type)
+    real_prop_features = get_node_count_deepest_cascade(real_prop_graph, target_edge_type)
 
     # fake_prop_features = get_prop_graps_cascade_num(fake_prop_graph, target_edge_type)
     # real_prop_features = get_prop_graps_cascade_num(real_prop_graph, target_edge_type)

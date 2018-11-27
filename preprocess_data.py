@@ -16,8 +16,6 @@ from util.graph_dumper import dumps_graph
 from util.util import tweet_node, twitter_datetime_str_to_object
 
 
-
-
 def is_user_followees_info_file_present(folder, user_id):
     file_path = "{}/{}.json".format(folder, str(user_id))
     return os.path.exists(file_path)
@@ -143,7 +141,6 @@ def get_forest_from_tweets(news, user_id_friends_dict, user_name_friends_dict):
 
     news_publication_time = ""
 
-
     news_root_node = tweet_node(news_id, news_article_text_content, None, None, None, news_id, node_type=NEWS_ROOT_NODE)
 
     for tweet in tweets:
@@ -176,7 +173,8 @@ def add_reply_nodes(node: tweet_node, replies: list):
             else:
                 user_id = reply["user"]
 
-            reply_node = tweet_node(reply["id"], reply["text"], int(reply["created_at"]), user_name, user_id, node.news_id,
+            reply_node = tweet_node(reply["id"], reply["text"], int(reply["created_at"]), user_name, user_id,
+                                    node.news_id,
                                     node_type=REPLY_NODE)
 
             node.add_reply_child(reply_node)
@@ -187,6 +185,8 @@ def add_reply_nodes(node: tweet_node, replies: list):
 
         else:
             print("---------REPLY NOT FOUND----------------")
+
+
 # def add_retweet_nodes(node: tweet_node, retweets: list, tweet_id_node_dict: dict):
 #     for retweet in retweets:
 #         retweet_node = tweet_node(retweet["id"], retweet["text"], twitter_datetime_str_to_object(retweet["created_at"]),
@@ -308,6 +308,7 @@ def constuct_dataset_forests(enagement_file_dir, social_network_dir, out_dir, ne
     pickle.dump(news_graphs, open(out_file, "wb"))
 
     return news_graphs
+
 
 def dump_graphs(graphs):
     params = {"node_color": {}}
