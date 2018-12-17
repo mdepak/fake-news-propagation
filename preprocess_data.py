@@ -11,6 +11,8 @@ from tqdm import tqdm
 from pymongo import MongoClient
 
 from analysis_util import sort_retweet_object_by_time
+from misc_process import get_politifact_tweet_filter_dates
+from pre_process_util import load_configuration, get_database_connection
 from util.constants import RETWEET_NODE, NEWS_ROOT_NODE, POST_NODE, REPLY_NODE
 from util.graph_dumper import dumps_graph
 from util.util import tweet_node, twitter_datetime_str_to_object
@@ -117,19 +119,21 @@ def add_reply_link(parent_node: tweet_node, child_node: tweet_node):
     child_node.set_parent_node(parent_node)
 
 
-def has_retweet_or_replies(tweets):
+def has_retweet_or_replies(tweets, tweet_filter_date):
     for tweet in tweets:
-        if len(tweet["retweet"]) > 0 or len(tweet["reply"]) > 0:
-            return True
+        if tweet["created_at"] >= int(tweet_filter_date):
+            if len(tweet["retweet"]) > 0 or len(tweet["reply"]) > 0:
+                return True
 
     return False
 
 
-def get_forest_from_tweets(news, user_id_friends_dict, user_name_friends_dict):
+def get_forest_from_tweets(news, user_id_friends_dict, user_name_friends_dict, news_id_tweet_filter_date_dict):
     news_id = news["id"]
     tweets = news["tweets"]
+    tweet_filter_date = (news_id_tweet_filter_date_dict[news_id] - (3600 * 24 * 30))
 
-    if not has_retweet_or_replies(tweets):
+    if not has_retweet_or_replies(tweets, tweet_filter_date):
         return None
 
     tweet_id_node_dict = dict()
@@ -144,18 +148,33 @@ def get_forest_from_tweets(news, user_id_friends_dict, user_name_friends_dict):
     news_root_node = tweet_node(news_id, news_article_text_content, None, None, None, news_id, node_type=NEWS_ROOT_NODE)
 
     for tweet in tweets:
-        node = tweet_node(tweet["tweet_id"], tweet["text"], tweet["created_at"], tweet["user_name"], tweet["user_id"],
-                          news_id, node_type=POST_NODE)
+        if tweet["created_at"] >= tweet_filter_date:
+            node = tweet_node(tweet["tweet_id"], tweet["text"], tweet["created_at"], tweet["user_name"], tweet["user_id"],
+                              news_id, node_type=POST_NODE)
 
-        tweet_id_node_dict[tweet["tweet_id"]] = node
+            tweet_id_node_dict[tweet["tweet_id"]] = node
 
-        add_retweet_link(news_root_node, node)
-        add_reply_link(news_root_node, node)
+            add_retweet_link(news_root_node, node)
+            add_reply_link(news_root_node, node)
 
-        construct_retweet_graph(node, tweet["retweet"], user_id_friends_dict, user_name_friends_dict)
-        add_reply_nodes(node, tweet["reply"])
+            construct_retweet_graph(node, tweet["retweet"], user_id_friends_dict, user_name_friends_dict)
+            add_reply_nodes(node, tweet["reply"])
 
     return news_root_node
+
+
+def get_reply_of_replies(replies: list):
+    replies_list = []
+
+    for reply in replies:
+        if reply:
+
+            if "engagement" in reply:
+                replies_list.extend(get_reply_of_replies(reply["engagement"]["tweet_replies"]))
+
+            replies_list.append(reply)
+
+    return replies_list
 
 
 def add_reply_nodes(node: tweet_node, replies: list):
@@ -181,7 +200,7 @@ def add_reply_nodes(node: tweet_node, replies: list):
             reply_node.set_parent_node(node)
 
             if "engagement" in reply:
-                add_reply_nodes(reply_node, reply["engagement"]["tweet_replies"])
+                add_reply_nodes(reply, reply["engagement"]["tweet_replies"])
 
         else:
             print("---------REPLY NOT FOUND----------------")
@@ -263,7 +282,7 @@ def get_news_articles(data_file):
     return news_articles
 
 
-def constuct_dataset_forests(enagement_file_dir, social_network_dir, out_dir, news_source, label):
+def constuct_dataset_forests(enagement_file_dir, social_network_dir, out_dir, news_source, label, db, is_fake):
     dataset_file = "{}/{}_{}_news_dataset_format.json".format(enagement_file_dir, news_source, label)
     user_ids_friends_file = "{}/{}_user_ids_friends_network.txt".format(social_network_dir, news_source)
     user_name_friends_file = "{}/{}_user_names_friends_network.txt".format(social_network_dir, news_source)
@@ -288,6 +307,8 @@ def constuct_dataset_forests(enagement_file_dir, social_network_dir, out_dir, ne
     user_id_friends_dict = {}
     user_name_friends_dict = {}
 
+    news_id_tweet_filter_date_dict = get_politifact_tweet_filter_dates(db, is_fake)
+
     print("Construction of forest : {} - {}".format(news_source, label))
     print("No of user name - friends : {}".format(len(user_name_friends_dict)))
     print("No. of user id - friends : {}".format(len(user_id_friends_dict)), flush=True)
@@ -297,7 +318,8 @@ def constuct_dataset_forests(enagement_file_dir, social_network_dir, out_dir, ne
     news_graphs = []
 
     for news in tqdm(dataset):
-        graph = get_forest_from_tweets(news, user_id_friends_dict, user_name_friends_dict)
+        graph = get_forest_from_tweets(news, user_id_friends_dict, user_name_friends_dict,
+                                       news_id_tweet_filter_date_dict)
 
         if graph:
             news_graphs.append(graph)
@@ -331,23 +353,7 @@ def dump_graphs(graphs):
     return [news_graphs, tweet_info]
 
 
-def load_configuration(config_file):
-    """Gets the configuration file and returns the dictionary of configuration"""
-    filename = config_file
-    config = configparser.ConfigParser()
-    config.read(filename)
 
-    return config
-
-
-def get_database_connection(config):
-    host = config['MongoDB']['host']
-    port = int(config['MongoDB']['port'])
-    db_name = config['MongoDB']['database_name']
-
-    client = MongoClient(host, port)
-    db = client[db_name]
-    return db
 
 
 # def get_networ
@@ -378,9 +384,13 @@ if __name__ == "__main__":
     # dump_files_as_lines(politifact_real_dataset_file, "data/politfact_real_news_dataset_format.json")
     # dump_files_as_lines(politifact_fake_dataset_file, "data/politfact_fake_news_dataset_format.json")
 
-    # constuct_dataset_forests("data/engagement_data", "data/social_network_data", "data/saved_new", "politifact", "fake")
+    config = load_configuration("project.config")
+    db = get_database_connection(config)
 
-    constuct_dataset_forests("data/engagement_data", "data/social_network_data", "data/saved", "politifact", "real")
+    constuct_dataset_forests("data/engagement_data", "data/social_network_data", "data/saved_new", "politifact", "fake",
+                             db, is_fake=True)
+
+    # constuct_dataset_forests("data/engagement_data", "data/social_network_data", "data/saved", "politifact", "real")
 
     # constuct_dataset_forests("data/engagement_data", "data/social_network_data", "data/saved", "gossipcop", "fake")
     # constuct_dataset_forests("data/engagement_data", "data/social_network_data", "data/saved", "gossipcop", "real")

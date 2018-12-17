@@ -65,4 +65,4 @@ class tweet_node:
 def twitter_datetime_str_to_object(date_str):
     time_struct = time.strptime(date_str, "%a %b %d %H:%M:%S +0000 %Y")
     date = datetime.datetime.fromtimestamp(time.mktime(time_struct))
-    return int(date.strftime('%s'))
+    return int(date.timestamp())
