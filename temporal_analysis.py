@@ -242,7 +242,7 @@ if __name__ == "__main__":
 
     print("After equal random sampling")
     print("Fake samples : {}  Real samples : {}".format(len(fake_prop_graph), len(real_prop_graph)))
-    # feature_name = "avg. time between post tweets"
+    feature_name = "avg. time between post tweets"
     # feature_name = "time_diff_first_last_post_tweet"
     # feature_name = "time_diff_first_post_last_retweet"
     # feature_name = "time_diff_first_post_first_retweet"
@@ -250,7 +250,7 @@ if __name__ == "__main__":
 
     # feature_name = "get_avg_retweet_time_deepest_cascade"
     # feature_name = "get_time_diff_post_time_last_retweet_time_deepest_cascade"
-    feature_name = "get_avg_time_between_replies"
+    # feature_name = "get_avg_time_between_replies"
     # feature_name = "get_time_diff_first_post_last_reply"
     # feature_name = "get_time_diff_post_time_last_reply_time_deepest_cascade"
 
@@ -261,7 +261,7 @@ if __name__ == "__main__":
     # function_ref = get_avg_time_between_retweets
     # function_ref = get_avg_retweet_time_deepest_cascade
     # function_ref = get_time_diff_post_time_last_retweet_time_deepest_cascade
-    function_ref = get_avg_time_between_replies
+    # function_ref = get_avg_time_between_replies
     # function_ref = get_time_diff_first_post_last_reply
     # function_ref = get_time_diff_post_time_last_reply_time_deepest_cascade
 

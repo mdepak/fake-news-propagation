@@ -1,7 +1,19 @@
+import errno
+import os
+
 import numpy as np
 import pickle
 
 from util.util import twitter_datetime_str_to_object, tweet_node
+
+
+def create_dir(dir_name):
+    if not os.path.exists(dir_name):
+        try:
+            os.makedirs(dir_name)
+        except OSError as exc:  # Guard against race condition
+            if exc.errno != errno.EEXIST:
+                raise
 
 
 def get_epoch_timestamp_from_retweet(retweet):

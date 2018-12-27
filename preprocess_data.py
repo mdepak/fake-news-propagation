@@ -132,6 +132,7 @@ def get_forest_from_tweets(news, user_id_friends_dict, user_name_friends_dict, n
     news_id = news["id"]
     tweets = news["tweets"]
     tweet_filter_date = (news_id_tweet_filter_date_dict[news_id] - (3600 * 24 * 30))
+    tweet_filter_date = (news_id_tweet_filter_date_dict[news_id] - (3600 * 24 * 30))
 
     if not has_retweet_or_replies(tweets, tweet_filter_date):
         return None
@@ -149,7 +150,8 @@ def get_forest_from_tweets(news, user_id_friends_dict, user_name_friends_dict, n
 
     for tweet in tweets:
         if tweet["created_at"] >= tweet_filter_date:
-            node = tweet_node(tweet["tweet_id"], tweet["text"], tweet["created_at"], tweet["user_name"], tweet["user_id"],
+            node = tweet_node(tweet["tweet_id"], tweet["text"], tweet["created_at"], tweet["user_name"],
+                              tweet["user_id"],
                               news_id, node_type=POST_NODE)
 
             tweet_id_node_dict[tweet["tweet_id"]] = node
@@ -353,9 +355,6 @@ def dump_graphs(graphs):
     return [news_graphs, tweet_info]
 
 
-
-
-
 # def get_networ
 
 def write_graph_data_to_db(db, news_graphs, tweet_info):
@@ -387,10 +386,11 @@ if __name__ == "__main__":
     config = load_configuration("project.config")
     db = get_database_connection(config)
 
-    constuct_dataset_forests("data/engagement_data", "data/social_network_data", "data/saved_new", "politifact", "fake",
-                             db, is_fake=True)
+    # constuct_dataset_forests("data/engagement_data", "data/social_network_data", "data/saved_new", "politifact", "fake",
+    #                          db, is_fake=True)
 
-    # constuct_dataset_forests("data/engagement_data", "data/social_network_data", "data/saved", "politifact", "real")
+    constuct_dataset_forests("data/engagement_data", "data/social_network_data", "data/saved", "politifact", "real", db,
+                             is_fake=False)
 
     # constuct_dataset_forests("data/engagement_data", "data/social_network_data", "data/saved", "gossipcop", "fake")
     # constuct_dataset_forests("data/engagement_data", "data/social_network_data", "data/saved", "gossipcop", "real")

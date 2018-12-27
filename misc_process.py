@@ -19,18 +19,27 @@ from pre_process_util import load_configuration, get_database_connection
 
 
 def get_web_archieve_results(search_url):
-    archieve_url = "http://web.archive.org/cdx/search/cdx?url={}&output=json".format(search_url)
+    try:
+        archieve_url = "http://web.archive.org/cdx/search/cdx?url={}&output=json".format(search_url)
 
-    response = requests.get(archieve_url)
-    response_json = json.loads(response.data)
+        response = requests.get(archieve_url)
+        response_json = json.loads(response.content)
 
-    response_json = response_json[1:]
+        response_json = response_json[1:]
 
-    return response_json
+        return response_json
+
+    except:
+        return None
 
 
-def get_website_from_arhieve():
-    pass
+def get_website_url_from_arhieve(url):
+    archieve_results = get_web_archieve_results(url)
+    if archieve_results:
+        modified_url = "https://web.archive.org/web/{}/{}".format(archieve_results[0][1], archieve_results[0][2])
+        return modified_url
+    else:
+        return url
 
 
 def dump_friends_file_as_lines(dataset_file, out_file):
@@ -292,7 +301,6 @@ def get_publish_date_from_sources_politifact(db, is_fake):
         news_collection = db.real_news_collection
         news_format_collection = db.real_news_format
 
-
     news_id_fact_statement_date_dict = dict()
 
     news_id_source_date_dict = dict()
@@ -300,9 +308,9 @@ def get_publish_date_from_sources_politifact(db, is_fake):
     for news_format in news_format_collection.find({"news_source": "politifact"}):
         news_id = news_format["id"]
 
-        news_id_int = int(news_id.replace("politifact",""))
+        news_id_int = int(news_id.replace("politifact", ""))
 
-        news = news_collection.find_one({"id":news_id_int})
+        news = news_collection.find_one({"id": news_id_int})
 
         publish_date = get_formatted_news_publish_date(news)
 
@@ -395,7 +403,8 @@ if __name__ == "__main__":
 
     print(len(news_id_filter_date_dict))
 
-    news_id_fact_statement_date_dict, news_id_source_date_dict = get_publish_date_from_sources_politifact(db, is_fake=False)
+    news_id_fact_statement_date_dict, news_id_source_date_dict = get_publish_date_from_sources_politifact(db,
+                                                                                                          is_fake=False)
     news_id_publish_time_dict = get_news_articles_published_time(db, is_fake=False)
 
     # news_id_publish_time = get_news_articles_published_time(

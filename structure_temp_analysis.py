@@ -3,7 +3,7 @@ import time
 import numpy as np
 
 from analysis_util import get_propagation_graphs, equal_samples, get_numpy_array
-from stat_test import perform_t_test, plot_normal_distributions
+from stat_test import perform_t_test, plot_normal_distributions, get_box_plots
 from util.util import tweet_node
 
 RETWEET_EDGE = "retweet"
@@ -370,7 +370,9 @@ if __name__ == "__main__":
 
     perform_t_test(fake_prop_features, real_prop_features)
 
-    plot_normal_distributions(fake_prop_features, real_prop_features)
+    get_box_plots(fake_prop_features, real_prop_features, "Deepest cascade node height")
+
+    # plot_normal_distributions(fake_prop_features, real_prop_features)
 
     # analyze_height(propagation_graphs, target_edge_type)
 
