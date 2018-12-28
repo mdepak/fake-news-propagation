@@ -1,4 +1,5 @@
 import configparser
+import json
 
 from pymongo import MongoClient
 
@@ -20,3 +21,9 @@ def get_database_connection(config):
     client = MongoClient(host, port)
     db = client[db_name]
     return db
+
+
+def get_news_articles(data_file):
+    with open(data_file) as file:
+        for line in file:
+            yield json.loads(line)

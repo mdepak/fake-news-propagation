@@ -12,7 +12,7 @@ from pymongo import MongoClient
 
 from analysis_util import sort_retweet_object_by_time
 from misc_process import get_politifact_tweet_filter_dates
-from pre_process_util import load_configuration, get_database_connection
+from pre_process_util import load_configuration, get_database_connection, get_news_articles
 from util.constants import RETWEET_NODE, NEWS_ROOT_NODE, POST_NODE, REPLY_NODE
 from util.graph_dumper import dumps_graph
 from util.util import tweet_node, twitter_datetime_str_to_object
@@ -273,15 +273,6 @@ def get_user_name_friends_dict(user_name_friends_file, user_names_refernce_file)
 
     return user_name_friends_dict
 
-
-def get_news_articles(data_file):
-    news_articles = []
-
-    with open(data_file) as file:
-        for line in file:
-            news_articles.append(json.loads(line))
-
-    return news_articles
 
 
 def constuct_dataset_forests(enagement_file_dir, social_network_dir, out_dir, news_source, label, db, is_fake):

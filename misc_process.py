@@ -1,6 +1,7 @@
 import json
 import mmap
 import os
+import pickle
 import re
 import string
 import sys
@@ -15,7 +16,16 @@ from pymongo import UpdateOne
 from tqdm import tqdm
 import newspaper
 
-from pre_process_util import load_configuration, get_database_connection
+from pre_process_util import load_configuration, get_database_connection, get_news_articles
+
+
+def get_reply_of_replies(replies: list, result_dict: dict):
+    for reply in replies:
+        if reply:
+            if "engagement" in reply:
+                get_reply_of_replies(reply["engagement"]["tweet_replies"], result_dict)
+
+            result_dict[reply["id"]] = reply["text"]
 
 
 def get_web_archieve_results(search_url):
@@ -395,30 +405,47 @@ def get_politifact_tweet_filter_dates(db, is_fake):
     return news_id_filter_date_dict
 
 
+def get_replies_from_dataset(dataset_dir, news_source, label, out_dir):
+    dataset_file = "{}/{}_{}_news_complete_dataset.json".format(dataset_dir, news_source, label)
+    dataset = get_news_articles(dataset_file)
+
+    reply_id_content_dict = dict()
+
+    for news in dataset:
+        for tweet in news["tweets"]:
+            get_reply_of_replies(tweet["reply"], reply_id_content_dict)
+
+    pickle.dump(reply_id_content_dict,
+                open("{}/{}_{}_reply_id_content_dict.pkl".format(out_dir, news_source, label), "wb"))
+
+
 if __name__ == "__main__":
     config = load_configuration("project.config")
     db = get_database_connection(config)
 
-    news_id_filter_date_dict = get_politifact_tweet_filter_dates(db, is_fake=True)
+    # get_replies_from_dataset("data/engagement_data_latest","politifact","fake","data/pre_process_data")
+    get_replies_from_dataset("data/engagement_data_latest", "politifact", "real", "data/pre_process_data")
 
-    print(len(news_id_filter_date_dict))
-
-    news_id_fact_statement_date_dict, news_id_source_date_dict = get_publish_date_from_sources_politifact(db,
-                                                                                                          is_fake=False)
-    news_id_publish_time_dict = get_news_articles_published_time(db, is_fake=False)
-
-    # news_id_publish_time = get_news_articles_published_time(
-    #     "data/engagement_data/politifact_fake_news_dataset_format.json")
-
-    news_id_filter_date_dict = get_dataset_publication_date(news_id_publish_time_dict, news_id_fact_statement_date_dict,
-                                                            news_id_source_date_dict)
-
-    print("Source news id len : {}".format(len(news_id_source_date_dict)))
-    print("Statement news id len : {}".format(len(news_id_fact_statement_date_dict)))
-    print("publish news ids len  : {}".format(len(news_id_publish_time_dict)))
-    print("News id propagation network filter date len : {}".format(len(news_id_filter_date_dict)))
-
-    exit(1)
+    # news_id_filter_date_dict = get_politifact_tweet_filter_dates(db, is_fake=True)
+    #
+    # print(len(news_id_filter_date_dict))
+    #
+    # news_id_fact_statement_date_dict, news_id_source_date_dict = get_publish_date_from_sources_politifact(db,
+    #                                                                                                       is_fake=False)
+    # news_id_publish_time_dict = get_news_articles_published_time(db, is_fake=False)
+    #
+    # # news_id_publish_time = get_news_articles_published_time(
+    # #     "data/engagement_data/politifact_fake_news_dataset_format.json")
+    #
+    # news_id_filter_date_dict = get_dataset_publication_date(news_id_publish_time_dict, news_id_fact_statement_date_dict,
+    #                                                         news_id_source_date_dict)
+    #
+    # print("Source news id len : {}".format(len(news_id_source_date_dict)))
+    # print("Statement news id len : {}".format(len(news_id_fact_statement_date_dict)))
+    # print("publish news ids len  : {}".format(len(news_id_publish_time_dict)))
+    # print("News id propagation network filter date len : {}".format(len(news_id_filter_date_dict)))
+    #
+    # exit(1)
 
     # dump_social_network_user_id_single_file("data/social_network_data/gossipcop_user_ids_friends_network.txt",
     #                         "/Users/deepak/Desktop/social_network_single_files/user_ids_files" )
