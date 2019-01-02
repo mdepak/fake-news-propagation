@@ -1,17 +1,17 @@
+import os
 import pickle
+from pathlib import Path
 
 import numpy as np
 from sklearn import preprocessing
 from sklearn.decomposition import PCA
-from sklearn.ensemble import RandomForestClassifier
 from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
 from sklearn.model_selection import train_test_split
 
 from analysis_util import get_propagation_graphs, equal_samples
-from linguistic_analysis import get_all_linguistic_features
-from structure_temp_analysis import get_all_structural_features
-from temporal_analysis import get_all_temporal_features
+from linguistic_analysis import get_all_linguistic_features, LinguisticFeatureHelper
+from structure_temp_analysis import get_all_structural_features, StructureFeatureHelper
+from temporal_analysis import get_all_temporal_features, TemporalFeatureHelper
 
 
 def get_features(news_graphs, micro_features, macro_features):
@@ -53,49 +53,10 @@ def get_dataset(news_source, load_dataset=False, micro_features=True, macro_feat
     return sample_features, target_labels
 
 
-def get_metrics(target, logits, one_hot_rep=True):
-    """
-    Two numpy one hot arrays
-    :param target:
-    :param logits:
-    :return:
-    """
-
-    if one_hot_rep:
-        label = np.argmax(target, axis=1)
-        predict = np.argmax(logits, axis=1)
-    else:
-        label = target
-        predict = logits
-
-    accuracy = accuracy_score(label, predict)
-
-    precision = precision_score(label, predict)
-    recall = recall_score(label, predict)
-    f1_score_val = f1_score(label, predict)
-
-    return accuracy, precision, recall, f1_score_val
-
-
 def get_train_test_split(samples_features, target_labels):
     X_train, X_test, y_train, y_test = train_test_split(samples_features, target_labels,
                                                         test_size=0.3, random_state=42)
     return X_train, X_test, y_train, y_test
-
-
-def train_model(classifier, X_train, X_test, y_train, y_test):
-    classifier.fit(X_train, y_train)
-
-    predicted_output = classifier.predict(X_test)
-    accuracy, precision, recall, f1_score_val = get_metrics(y_test, predicted_output, one_hot_rep=False)
-    print_metrics(accuracy, precision, recall, f1_score_val)
-
-
-def print_metrics(accuracy, precision, recall, f1_score_val):
-    print("Accuracy : {}".format(accuracy))
-    print("Precision : {}".format(precision))
-    print("Recall : {}".format(recall))
-    print("F1 : {}".format(f1_score_val))
 
 
 def perform_pca(train_data, target_labels):
@@ -104,7 +65,111 @@ def perform_pca(train_data, target_labels):
     return pca
 
 
+def get_dataset_file_name(file_dir, news_source, include_micro=True, include_macro=True, include_structural=True,
+                          include_temporal=True,
+                          include_linguistic=True):
+    file_names = [news_source]
+    if include_micro:
+        file_names.append("micro")
+
+    if include_macro:
+        file_names.append("macro")
+
+    if include_structural:
+        file_names.append("struct")
+
+    if include_temporal:
+        file_names.append("temp")
+
+    if include_linguistic:
+        file_names.append("linguistic")
+
+    return "{}/{}.pkl".format(file_dir, "_".join(file_names))
+
+
+def get_TPNF_dataset(out_dir, news_source, include_micro=True, include_macro=True, include_structural=None,
+                     include_temporal=None,
+                     include_linguistic=None):
+    file_name = get_dataset_file_name(out_dir, news_source, include_micro, include_macro, include_structural,
+                                      include_temporal, include_linguistic)
+
+    data_file = Path(file_name)
+
+    if data_file.is_file():
+        return pickle.load(open(file_name, "rb"))
+
+    else:
+        fake_sample_features, real_sample_features = get_dataset_feature_array(news_source, include_micro,
+                                                                               include_macro, include_structural,
+                                                                               include_temporal, include_linguistic)
+
+        sample_features = np.concatenate([fake_sample_features, real_sample_features], axis=0)
+        pickle.dump(sample_features, open(data_file, "wb"))
+
+
+def get_dataset_feature_array(news_source, include_micro=True, include_macro=True, include_structural=None,
+                              include_temporal=None,
+                              include_linguistic=None):
+    fake_prop_graph, real_prop_graph = get_propagation_graphs("data/saved_new_no_filter", news_source)
+
+    fake_prop_graph, real_prop_graph = equal_samples(fake_prop_graph, real_prop_graph)
+
+    feature_helpers = []
+
+    if include_structural:
+        feature_helpers.append(StructureFeatureHelper())
+
+    if include_temporal:
+        feature_helpers.append(TemporalFeatureHelper())
+
+    if include_linguistic:
+        feature_helpers.append(LinguisticFeatureHelper())
+
+    for feature_helper in feature_helpers:
+        fake_features = feature_helper.get_features_array(fake_prop_graph, micro_features=include_micro,
+                                                          macro_features=include_macro, news_source=news_source,
+                                                          label="fake")
+        real_features = feature_helper.get_features_array(real_prop_graph, micro_features=include_micro,
+                                                          macro_features=include_macro, news_source=news_source,
+                                                          label="real")
+        return fake_features, real_features
+
+
+def get_dataset_statistics(news_source):
+    fake_prop_graph, real_prop_graph = get_propagation_graphs("data/saved_new_no_filter", news_source)
+
+    fake_prop_graph, real_prop_graph = equal_samples(fake_prop_graph, real_prop_graph)
+
+    # feature_helpers = []
+
+    # feature_helpers = [StructureFeatureHelper(), TemporalFeatureHelper() , LinguisticFeatureHelper()]
+    feature_helpers = [LinguisticFeatureHelper()]
+
+    for feature_helper in feature_helpers:
+        fake_features = feature_helper.get_features_array(fake_prop_graph, micro_features=True,
+                                                          macro_features=True, news_source=news_source, label="fake")
+        real_features = feature_helper.get_features_array(real_prop_graph, micro_features=True,
+                                                          macro_features=True, news_source=news_source, label="real")
+
+        feature_helper.save_blox_plots_for_features(fake_feature_array=fake_features,
+                                                    real_feature_array=real_features, micro_features=True,
+                                                    macro_features=True, save_folder="data/feature_images/gossipcop")
+
+        # Print the statistics of the dataset
+        print("------------Fake------------")
+        feature_helper.print_statistics_for_all_features(feature_array=fake_features, prop_graphs=fake_prop_graph,
+                                                         micro_features=True, macro_features=True)
+
+        print("------------Real------------")
+        feature_helper.print_statistics_for_all_features(feature_array=real_features, prop_graphs=fake_prop_graph,
+                                                         micro_features=True, macro_features=True)
+
+
 if __name__ == "__main__":
+    get_dataset_statistics("gossipcop")
+
+    exit(1)
+
     train_data, target_labels = get_dataset(news_source="politifact", load_dataset=False, micro_features=True,
                                             macro_features=True)
 
@@ -125,7 +190,4 @@ if __name__ == "__main__":
     # classifier = RandomForestClassifier()
     # classifier = svm.SVC(kernel='linear')
 
-    train_model(classifier, X_train, X_test, y_train, y_test)
-
-
-
+    # train_model(classifier, X_train, X_test, y_train, y_test)

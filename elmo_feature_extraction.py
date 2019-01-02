@@ -104,8 +104,14 @@ if __name__ == "__main__":
     # sentences = [['First', 'sentence', '.'], []]
     # sentence_lat_embeddings = get_elmo_sentence_embeddings(sentences)
 
+    # print("============  Dumping fake data ============")
+    # dump_elmo_features("data/pre_process_data", "politifact", "fake", "data/pre_process_data/elmo_features")
+    #
+    # print("============  Dumping real data ============")
+    # dump_elmo_features("data/pre_process_data", "politifact", "real", "data/pre_process_data/elmo_features")
+
     print("============  Dumping fake data ============")
-    dump_elmo_features("data/pre_process_data", "politifact", "fake", "data/pre_process_data/elmo_features")
+    dump_elmo_features("data/pre_process_data", "gossipcop", "fake", "data/pre_process_data/elmo_features")
 
     print("============  Dumping real data ============")
-    dump_elmo_features("data/pre_process_data", "politifact", "real", "data/pre_process_data/elmo_features")
+    dump_elmo_features("data/pre_process_data", "gossipcop", "real", "data/pre_process_data/elmo_features")

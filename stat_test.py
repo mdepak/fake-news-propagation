@@ -1,3 +1,5 @@
+from textwrap import wrap
+
 from scipy import stats
 import numpy as np
 import matplotlib.pyplot as plt
@@ -18,16 +20,29 @@ def plot_normal_distributions(samples1, samples2):
     plt.show()
 
 
-def get_box_plots(samples1, samples2, title = None):
+def get_box_plots(samples1, samples2, save_folder,  title = None, file_name = None):
     all_data = [samples1, samples2]
     labels = ['Fake', 'Real']
 
+    fig = plt.figure(1, figsize=(4.5, 4))
+    ax1 = fig.add_subplot(111)
+    # ax.set_aspect(2)
     # rectangular box plot
-    bplot1 = plt.boxplot(all_data,
+    bplot1 = ax1.boxplot(all_data,
                          vert=True,  # vertical box alignment
                          patch_artist=True,  # fill with color
-                         labels=labels)  # will be used to label x-ticks
-    plt.title(title)
+                         labels=labels, showfliers=False)  # will be used to label x-ticks
+
+    # ax2 = fig.add_subplot(121)
+    # # ax.set_aspect(2)
+    # # rectangular box plot
+    # bplot2 = ax2.boxplot(all_data,
+    #                      vert=True,  # vertical box alignment
+    #                      patch_artist=True,  # fill with color
+    #                      labels=labels)  # will be used to label x-ticks
+
+    # plt.title(title)
+    title = ax1.set_title("\n".join(wrap(title,60)))
 
     # fill with colors
     colors = ['pink', 'lightblue', 'lightgreen']
@@ -38,4 +53,5 @@ def get_box_plots(samples1, samples2, title = None):
     # plt.xlabel()
     # plt.ylabel()
 
-    plt.show()
+    fig.savefig('{}/{}.png'.format(save_folder, file_name), bbox_inches='tight')
+    fig.show()

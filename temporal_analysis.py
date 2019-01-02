@@ -2,10 +2,11 @@ import queue
 
 import numpy as np
 
-from analysis_util import sort_tweet_node_object_by_created_time, get_propagation_graphs, equal_samples, get_numpy_array
+from analysis_util import sort_tweet_node_object_by_created_time, get_propagation_graphs, equal_samples, \
+    get_numpy_array, BaseFeatureHelper
 from stat_test import perform_t_test
-from structure_temp_analysis import get_first_post_time, get_post_tweet_deepest_cascade
-from util.constants import RETWEET_NODE, REPLY_NODE
+from structure_temp_analysis import get_first_post_time, get_post_tweet_deepest_cascade, get_max_out_degree_node
+from util.constants import RETWEET_NODE, REPLY_NODE, RETWEET_EDGE, REPLY_EDGE
 from util.util import tweet_node
 
 
@@ -87,9 +88,13 @@ def get_last_reply_by_time(news_graph: tweet_node):
 
     return max_time
 
+def get_avg_time_between_replies_deepest_cascade(news_graph: tweet_node):
+    deep_cascade, max_height = get_post_tweet_deepest_cascade(news_graph, edge_type=REPLY_EDGE)
+    return get_avg_time_between_replies(deep_cascade)
+
 
 def get_time_diff_post_time_last_reply_time_deepest_cascade(news_graph: tweet_node):
-    deep_cascade, max_height = get_post_tweet_deepest_cascade(news_graph)
+    deep_cascade, max_height = get_post_tweet_deepest_cascade(news_graph, edge_type=REPLY_EDGE)
     first_post_time = deep_cascade.created_time
 
     last_reply_time = get_last_reply_by_time(deep_cascade)
@@ -107,6 +112,19 @@ def get_time_diff_first_post_last_reply(news_graph: tweet_node):
         return 0
     else:
         return last_reply_time - first_post_time
+
+
+def get_first_reply_by_time(news_graph: tweet_node):
+    min_time = float("inf")
+
+    if news_graph:
+        for node in news_graph.retweet_children:
+            min_time = min(min_time, get_first_retweet_by_time(node))
+
+    if news_graph and news_graph.created_time is not None and news_graph.node_type == REPLY_NODE:
+        min_time = min(min_time, news_graph.created_time)
+
+    return min_time
 
 
 def get_first_retweet_by_time(news_graph: tweet_node):
@@ -234,6 +252,79 @@ def get_all_temporal_features(prop_graphs, micro_features, macro_features):
         all_features.append(features_set)
 
     return np.transpose(get_numpy_array(all_features))
+
+
+def time_difference_between_first_post_node_with_max_out_degree_macro(prop_graph):
+    max_out_degree_node, max_out_degree = get_max_out_degree_node(prop_graph, RETWEET_EDGE)
+    first_post_time = get_first_post_time(prop_graph)
+    if max_out_degree_node is None:
+        return 0
+    return max_out_degree_node.created_time - first_post_time
+
+
+def get_time_diff_first_post_first_reply(news_graph):
+    first_reply_time = get_first_reply_by_time(news_graph)
+    first_post_time = get_first_post_time(news_graph)
+
+    if first_reply_time == float("inf"):
+        return 0
+
+    return first_reply_time - first_post_time
+
+
+class TemporalFeatureHelper(BaseFeatureHelper):
+
+    def get_micro_feature_method_references(self):
+        method_refs = [get_avg_time_between_replies,
+                       get_time_diff_first_post_first_reply,
+                       get_time_diff_first_post_last_reply,
+                       get_avg_time_between_replies_deepest_cascade,
+                       get_time_diff_post_time_last_reply_time_deepest_cascade]
+
+        return method_refs
+
+    def get_micro_feature_method_names(self):
+        feature_names = ["Avg time diff between adjacent replies",
+                         "Time diff between first tweet posting node and first reply node",
+                         "Time diff between first tweet posting news and last reply node",
+                         "Avg time between replies in deepest cascade",
+                         "Time diff between first tweet posting news and last reply node in deepest cascade"]
+
+        return feature_names
+
+    def get_micro_feature_short_names(self):
+        feature_names = ["T9", "T10", "T11", "T12", "T13"]
+        return feature_names
+
+    def get_macro_feature_method_references(self):
+        method_refs = [get_avg_time_between_retweets,
+                       get_time_diff_first_post_last_retweet,
+                       time_difference_between_first_post_node_with_max_out_degree_macro,  # not implemented
+                       get_time_diff_first_last_post_tweet,
+                       get_time_diff_post_time_last_retweet_time_deepest_cascade,
+                       get_avg_retweet_time_deepest_cascade,
+                       get_average_time_between_post_tweets,
+                       get_time_diff_first_post_first_retweet]
+
+        return method_refs
+
+    def get_macro_feature_method_names(self):
+        feature_names = ["Avg time diff between the adjacent retweet nodes",
+                         "Time diff between first tweet and  most recent node in macro network",
+                         "Time diff between first tweet posting news and max out degree node",
+                         "Time diff between the first and last tweet posting news",
+                         "Time diff between tweet posting news and last retweet node in deepest cascade",
+                         "Avg time diff between the adjacent retweet nodes in deepest cascade",
+                         "Avg time between tweets posting news",
+                         "Avg time diff between the tweet post time and the first retweet time"]
+
+        return feature_names
+
+    feature_names = []
+
+    def get_macro_feature_short_names(self):
+        feature_names = ["T1", "T2", "T3", "T4", "T5", "T6", "T7", "T8"]
+        return feature_names
 
 
 if __name__ == "__main__":

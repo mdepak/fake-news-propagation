@@ -424,7 +424,10 @@ if __name__ == "__main__":
     db = get_database_connection(config)
 
     # get_replies_from_dataset("data/engagement_data_latest","politifact","fake","data/pre_process_data")
-    get_replies_from_dataset("data/engagement_data_latest", "politifact", "real", "data/pre_process_data")
+    # get_replies_from_dataset("data/engagement_data_latest", "politifact", "real", "data/pre_process_data")
+
+    get_replies_from_dataset("data/engagement_data_latest", "gossipcop", "fake", "data/pre_process_data")
+    get_replies_from_dataset("data/engagement_data_latest", "gossipcop", "real", "data/pre_process_data")
 
     # news_id_filter_date_dict = get_politifact_tweet_filter_dates(db, is_fake=True)
     #

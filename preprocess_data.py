@@ -53,7 +53,7 @@ def construct_retweet_graph(root_node, retweets, user_id_friends_dict, user_name
     user_names_so_far = set()
 
     user_ids_folder = "/Users/deepak/Desktop/social_network_single_files/user_ids_files"
-    user_name_folder = "/Users/deepak/Desktop/social_network_single_files/user_names_files"
+    user_name_folder = "/Users/deepak/Desktop/social_network_single_files/social_network_all_user_names"
 
     for retweet in retweets:
 
@@ -131,8 +131,10 @@ def has_retweet_or_replies(tweets, tweet_filter_date):
 def get_forest_from_tweets(news, user_id_friends_dict, user_name_friends_dict, news_id_tweet_filter_date_dict):
     news_id = news["id"]
     tweets = news["tweets"]
-    tweet_filter_date = (news_id_tweet_filter_date_dict[news_id] - (3600 * 24 * 30))
-    tweet_filter_date = (news_id_tweet_filter_date_dict[news_id] - (3600 * 24 * 30))
+    # tweet_filter_date = (news_id_tweet_filter_date_dict[news_id] - (3600 * 24 * 90))
+    # tweet_filter_date = (news_id_tweet_filter_date_dict[news_id] - (3600 * 24 * 90))
+
+    tweet_filter_date = 0
 
     if not has_retweet_or_replies(tweets, tweet_filter_date):
         return None
@@ -202,7 +204,7 @@ def add_reply_nodes(node: tweet_node, replies: list):
             reply_node.set_parent_node(node)
 
             if "engagement" in reply:
-                add_reply_nodes(reply, reply["engagement"]["tweet_replies"])
+                add_reply_nodes(reply_node, reply["engagement"]["tweet_replies"])
 
         else:
             print("---------REPLY NOT FOUND----------------")
@@ -276,11 +278,12 @@ def get_user_name_friends_dict(user_name_friends_file, user_names_refernce_file)
 
 
 def constuct_dataset_forests(enagement_file_dir, social_network_dir, out_dir, news_source, label, db, is_fake):
-    dataset_file = "{}/{}_{}_news_dataset_format.json".format(enagement_file_dir, news_source, label)
-    user_ids_friends_file = "{}/{}_user_ids_friends_network.txt".format(social_network_dir, news_source)
-    user_name_friends_file = "{}/{}_user_names_friends_network.txt".format(social_network_dir, news_source)
-    id_reference_file = "data/format/{}_{}_user_id_user_name_dict.json".format(news_source, label)
-    user_names_refernce_file = "data/format/{}_{}_prop_user_names.json".format(news_source, label)
+    dataset_file = "{}/{}_{}_news_complete_dataset.json".format(enagement_file_dir, news_source, label)
+
+    # user_ids_friends_file = "{}/{}_user_ids_friends_network.txt".format(social_network_dir, news_source)
+    # user_name_friends_file = "{}/{}_user_names_friends_network.txt".format(social_network_dir, news_source)
+    # id_reference_file = "data/format/{}_{}_user_id_user_name_dict.json".format(news_source, label)
+    # user_names_refernce_file = "data/format/{}_{}_prop_user_names.json".format(news_source, label)
 
     out_file = "{}/{}_{}_news_prop_graphs.pkl".format(out_dir, news_source, label)
 
@@ -300,8 +303,9 @@ def constuct_dataset_forests(enagement_file_dir, social_network_dir, out_dir, ne
     user_id_friends_dict = {}
     user_name_friends_dict = {}
 
-    news_id_tweet_filter_date_dict = get_politifact_tweet_filter_dates(db, is_fake)
+    # news_id_tweet_filter_date_dict = get_politifact_tweet_filter_dates(db, is_fake)
 
+    news_id_tweet_filter_date_dict = None
     print("Construction of forest : {} - {}".format(news_source, label))
     print("No of user name - friends : {}".format(len(user_name_friends_dict)))
     print("No. of user id - friends : {}".format(len(user_id_friends_dict)), flush=True)
@@ -377,11 +381,18 @@ if __name__ == "__main__":
     config = load_configuration("project.config")
     db = get_database_connection(config)
 
-    # constuct_dataset_forests("data/engagement_data", "data/social_network_data", "data/saved_new", "politifact", "fake",
+    # constuct_dataset_forests("data/engagement_data_latest", "data/social_network_data", "data/saved_new_no_filter", "politifact", "fake",
+    #                          db, is_fake=True)
+    #
+    # constuct_dataset_forests("data/engagement_data_latest", "data/social_network_data", "data/saved_new_no_filter", "politifact", "real", db,
+    #                          is_fake=False)
+    #
+    # constuct_dataset_forests("data/engagement_data_latest", "data/social_network_data", "data/saved_new_no_filter", "gossipcop", "fake",
     #                          db, is_fake=True)
 
-    constuct_dataset_forests("data/engagement_data", "data/social_network_data", "data/saved", "politifact", "real", db,
+    constuct_dataset_forests("data/engagement_data_latest", "data/social_network_data", "data/saved_new_no_filter", "gossipcop", "real", db,
                              is_fake=False)
+
 
     # constuct_dataset_forests("data/engagement_data", "data/social_network_data", "data/saved", "gossipcop", "fake")
     # constuct_dataset_forests("data/engagement_data", "data/social_network_data", "data/saved", "gossipcop", "real")
