@@ -10,14 +10,27 @@ from sklearn.tree import DecisionTreeClassifier
 from construct_sample_features import get_TPNF_dataset, get_train_test_split
 
 
-def train_model(classifier, X_train, X_test, y_train, y_test):
+def get_classifier_by_name(classifier_name):
+    if classifier_name == "GaussianNB":
+        return GaussianNB()
+    elif classifier_name == "LogisticRegression":
+        return LogisticRegression()
+    elif classifier_name == "DecisionTreeClassifier":
+        return DecisionTreeClassifier()
+    elif classifier_name == "RandomForestClassifier":
+        return RandomForestClassifier()
+    elif classifier_name == "SVM -linear kernel":
+        return svm.SVC(kernel='linear')
+
+
+def train_model(classifier_name, X_train, X_test, y_train, y_test):
     accuracy_values = []
     precision_values = []
     recall_values = []
     f1_score_values = []
 
     for i in range(5):
-        classifier_clone = clone(classifier)
+        classifier_clone = get_classifier_by_name(classifier_name)
         classifier_clone.fit(X_train, y_train)
 
         predicted_output = classifier_clone.predict(X_test)
@@ -81,9 +94,9 @@ def get_classificaton_results_tpnf(data_dir, news_source):
     include_micro = True
     include_macro = True
 
-    include_structural = True
-    include_temporal = True
-    include_linguistic = False
+    include_structural = False
+    include_temporal = False
+    include_linguistic = True
 
     sample_feature_array = get_TPNF_dataset(data_dir, news_source, include_micro, include_macro, include_structural,
                                             include_temporal, include_linguistic)
@@ -91,7 +104,7 @@ def get_classificaton_results_tpnf(data_dir, news_source):
     print("Sample feature array dimensions")
     print(sample_feature_array.shape, flush=True)
 
-    num_samples = len(sample_feature_array)
+    num_samples = int(len(sample_feature_array) / 2)
     target_labels = np.concatenate([np.ones(num_samples), np.zeros(num_samples)], axis=0)
 
     X_train, X_test, y_train, y_test = get_train_test_split(sample_feature_array, target_labels)
@@ -99,4 +112,4 @@ def get_classificaton_results_tpnf(data_dir, news_source):
 
 
 if __name__ == "__main__":
-    get_classificaton_results_tpnf("data/train_test_data", "politifact")
+    get_classificaton_results_tpnf("data/train_test_data", "gossipcop")

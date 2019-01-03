@@ -54,8 +54,8 @@ def get_dataset(news_source, load_dataset=False, micro_features=True, macro_feat
 
 
 def get_train_test_split(samples_features, target_labels):
-    X_train, X_test, y_train, y_test = train_test_split(samples_features, target_labels,
-                                                        test_size=0.3, random_state=42)
+    X_train, X_test, y_train, y_test = train_test_split(samples_features, target_labels, stratify = target_labels,
+                                                        test_size=0.2, random_state=42)
     return X_train, X_test, y_train, y_test
 
 
@@ -104,7 +104,9 @@ def get_TPNF_dataset(out_dir, news_source, include_micro=True, include_macro=Tru
                                                                                include_temporal, include_linguistic)
 
         sample_features = np.concatenate([fake_sample_features, real_sample_features], axis=0)
-        pickle.dump(sample_features, open(data_file, "wb"))
+        pickle.dump(sample_features, open(file_name, "wb"))
+
+        return sample_features
 
 
 def get_dataset_feature_array(news_source, include_micro=True, include_macro=True, include_structural=None,
@@ -114,25 +116,42 @@ def get_dataset_feature_array(news_source, include_micro=True, include_macro=Tru
 
     fake_prop_graph, real_prop_graph = equal_samples(fake_prop_graph, real_prop_graph)
 
+
     feature_helpers = []
+    feature_group_names = []
 
     if include_structural:
         feature_helpers.append(StructureFeatureHelper())
+        feature_group_names.append("Structural")
 
     if include_temporal:
         feature_helpers.append(TemporalFeatureHelper())
+        feature_group_names.append("Temporal")
 
     if include_linguistic:
         feature_helpers.append(LinguisticFeatureHelper())
+        feature_group_names.append("Linguistic")
 
-    for feature_helper in feature_helpers:
+
+    fake_feature_all = []
+    real_feature_all = []
+    for idx, feature_helper in enumerate(feature_helpers):
         fake_features = feature_helper.get_features_array(fake_prop_graph, micro_features=include_micro,
                                                           macro_features=include_macro, news_source=news_source,
                                                           label="fake")
         real_features = feature_helper.get_features_array(real_prop_graph, micro_features=include_micro,
                                                           macro_features=include_macro, news_source=news_source,
                                                           label="real")
-        return fake_features, real_features
+
+        if fake_features is not None and real_features is not None:
+            fake_feature_all.append(fake_features)
+            real_feature_all.append(real_features)
+
+            print("Feature group : {}".format(feature_group_names[idx]))
+            print(len(fake_features))
+            print(len(real_features), flush=True)
+
+    return np.concatenate(fake_feature_all, axis=1), np.concatenate(real_feature_all,axis=1)
 
 
 def get_dataset_statistics(news_source):
