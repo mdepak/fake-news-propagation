@@ -1,3 +1,5 @@
+import csv
+
 from analysis_util import get_propagation_graphs, create_dir, equal_samples
 from pre_process_util import load_configuration, get_database_connection
 
@@ -87,10 +89,23 @@ def dump_text_content(dump_folder, label_folder, news_id_text_content_dict):
 def count_news_articles_without_text_content(news_id_text_content_dict):
     count = 0
     for news_id, text_content in news_id_text_content_dict.items():
-        if len(text_content) <5:
-            count+=1
+        if len(text_content) < 5:
+            count += 1
 
     print("News ids without text content : {}".format(count))
+
+
+def remove_escape_characters(text_content):
+    text_content = text_content.replace('\n', ' ')
+    text_content = text_content.replace('\t', ' ')
+    return text_content
+
+
+def dump_csv_format_file(dump_folder, file_name, news_id_text_content_dict):
+    with open("{}/{}.csv".format(dump_folder, file_name), "w", encoding="UTF-8") as file:
+        writer = csv.writer(file, delimiter='\t')
+        for news_id, text_content in news_id_text_content_dict.items():
+            writer.writerow([news_id, remove_escape_characters(text_content)])
 
 
 if __name__ == "__main__":
@@ -99,12 +114,17 @@ if __name__ == "__main__":
     config = load_configuration("project.config")
     db = get_database_connection(config)
 
+    news_source = "gossipcop"
+
     fake_news_text_contents, real_news_text_contents = get_news_article_text_content_used_for_propagation_network(db,
                                                                                                                   "data/saved_new_no_filter",
-                                                                                                                  "politifact")
+                                                                                                                  news_source)
+
+    dump_csv_format_file("data/baseline_data", "{}_fake_text_contents".format(news_source), fake_news_text_contents)
+    dump_csv_format_file("data/baseline_data", "{}_real_text_contents".format(news_source), real_news_text_contents)
+
     # count_news_articles_without_text_content(fake_news_text_contents)
     # count_news_articles_without_text_content(real_news_text_contents)
 
-
-    dump_text_content("data/baseline_data", "politifact_fake", fake_news_text_contents)
-    dump_text_content("data/baseline_data", "politifact_real", real_news_text_contents)
+    # dump_text_content("data/baseline_data", "gossipcop_fake", fake_news_text_contents)
+    # dump_text_content("data/baseline_data", "gossipcop_real", real_news_text_contents)

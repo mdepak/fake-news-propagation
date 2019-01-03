@@ -414,7 +414,7 @@ class StructureFeatureHelper(BaseFeatureHelper):
         return feature_names
 
     def get_micro_feature_short_names(self):
-        feature_names = ["S1", "S2", "S3"]
+        feature_names = ["S7", "S8", "S9"]
         return feature_names
 
     def get_macro_feature_method_references(self):

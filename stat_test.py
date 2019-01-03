@@ -12,6 +12,7 @@ def perform_t_test(samples1, samples2):
     [t_val, p_val] = stats.ttest_ind(samples1, samples2, equal_var=False)
     print("t-Statistic value : {}".format(t_val))
     print("p - value : {}".format(p_val))
+    print("=====================================")
 
 
 def plot_normal_distributions(samples1, samples2):

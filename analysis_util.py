@@ -4,7 +4,7 @@ import os
 import numpy as np
 import pickle
 
-from stat_test import get_box_plots
+from stat_test import get_box_plots, perform_t_test
 from util.util import twitter_datetime_str_to_object, tweet_node
 
 from abc import ABCMeta, abstractmethod
@@ -96,6 +96,16 @@ class BaseFeatureHelper(metaclass=ABCMeta):
             real_feature_values = real_feature_array[:, idx]
             get_box_plots(fake_feature_values, real_feature_values, save_folder, feature_names[idx],
                           short_feature_names[idx])
+
+    def get_feature_significance_t_tests(self, fake_feature_array, real_feature_array, micro_features=None,
+                                         macro_features=None):
+        [feature_names, short_feature_names] = self.get_feature_names(micro_features, macro_features)
+
+        for idx in range(len(feature_names)):
+            fake_feature_values = fake_feature_array[:, idx]
+            real_feature_values = real_feature_array[:, idx]
+            print("Feature {} : {}".format(short_feature_names[idx], feature_names[idx]))
+            perform_t_test(fake_feature_values, real_feature_values)
 
 
 def get_sample_feature_value(news_graps: list, get_feature_fun_ref):
