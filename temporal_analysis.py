@@ -274,6 +274,9 @@ def get_time_diff_first_post_first_reply(news_graph):
 
 class TemporalFeatureHelper(BaseFeatureHelper):
 
+    def get_feature_group_name(self):
+        return "temp"
+
     def get_micro_feature_method_references(self):
         method_refs = [get_avg_time_between_replies,
                        get_time_diff_first_post_first_reply,

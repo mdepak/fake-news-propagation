@@ -1,5 +1,6 @@
 import errno
 import os
+from pathlib import Path
 
 import numpy as np
 import pickle
@@ -11,6 +12,10 @@ from abc import ABCMeta, abstractmethod
 
 
 class BaseFeatureHelper(metaclass=ABCMeta):
+
+    @abstractmethod
+    def get_feature_group_name(self):
+        pass
 
     @abstractmethod
     def get_micro_feature_method_references(self):
@@ -36,8 +41,25 @@ class BaseFeatureHelper(metaclass=ABCMeta):
     def get_macro_feature_short_names(self):
         pass
 
-    def get_features_array(self, prop_graphs, micro_features, macro_features, news_source=None, label=None):
+    def get_dump_file_name(self, news_source, micro_features, macro_features, label, file_dir):
+        file_tags = [news_source, label, self.get_feature_group_name()]
+        if micro_features:
+            file_tags.append("micro")
+
+        if macro_features:
+            file_tags.append("macro")
+
+        return "{}/{}.pkl".format(file_dir, "_".join(file_tags))
+
+    def get_features_array(self, prop_graphs, micro_features, macro_features, news_source=None, label=None,
+                           file_dir="data/train_test_data"):
         function_refs = []
+
+        file_name = self.get_dump_file_name(news_source,micro_features, macro_features, label, file_dir)
+        data_file = Path(file_name)
+
+        if data_file.is_file():
+            return pickle.load(open(file_name, "rb"))
 
         if micro_features:
             function_refs.extend(self.get_micro_feature_method_references())
@@ -54,7 +76,11 @@ class BaseFeatureHelper(metaclass=ABCMeta):
             features_set = get_sample_feature_value(prop_graphs, function_reference)
             all_features.append(features_set)
 
-        return np.transpose(get_numpy_array(all_features))
+        feature_array = np.transpose(get_numpy_array(all_features))
+
+        pickle.dump(feature_array, open(file_name, "wb"))
+
+        return feature_array
 
     def get_feature_names(self, micro_features, macro_features):
         features_names = []

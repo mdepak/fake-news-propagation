@@ -1,8 +1,12 @@
+import pickle
+import queue
 import time
+from pathlib import Path
 
 import numpy as np
 
-from analysis_util import get_propagation_graphs, equal_samples, get_numpy_array, BaseFeatureHelper
+from analysis_util import get_propagation_graphs, equal_samples, get_numpy_array, BaseFeatureHelper, \
+    get_sample_feature_value
 from stat_test import perform_t_test, plot_normal_distributions, get_box_plots
 from util.constants import NEWS_ROOT_NODE, RETWEET_EDGE, REPLY_EDGE
 from util.util import tweet_node
@@ -381,13 +385,128 @@ def get_first_post_time(node: tweet_node):
     return first_post_time
 
 
+def get_num_of_cascades_with_retweets(root_node: tweet_node):
+    num_cascades = 0
+    for node in root_node.retweet_children:
+        if len(node.retweet_children) > 0:
+            num_cascades += 1
+
+    return num_cascades
+
+
+def get_prop_graphs_num_of_cascades_with_retweets(prop_graphs, edge_type=RETWEET_EDGE):
+    return get_sample_feature_value(prop_graphs, get_num_of_cascades_with_retweets)
+
+
+def get_fraction_of_cascades_with_retweets(root_node: tweet_node):
+    total_cascades = len(root_node.retweet_children)
+
+    cascade_with_retweet = 0
+    for node in root_node.retweet_children:
+        if len(node.retweet_children) > 0:
+            cascade_with_retweet += 1
+
+    return cascade_with_retweet / total_cascades
+
+
+def get_prop_graphs_fraction_of_cascades_with_retweets(prop_graphs, edge_type=RETWEET_EDGE):
+    return get_sample_feature_value(prop_graphs, get_fraction_of_cascades_with_retweets)
+
+
+def get_num_of_cascades_with_replies(root_node: tweet_node):
+    num_cascades = 0
+    for node in root_node.reply_children:
+        if len(node.reply_children) > 0:
+            num_cascades += 1
+
+    return num_cascades
+
+
+def get_prop_graphs_num_of_cascades_with_replies(prop_graphs, edge_type=RETWEET_EDGE):
+    return get_sample_feature_value(prop_graphs, get_num_of_cascades_with_replies)
+
+
+def get_fraction_of_cascades_with_replies(root_node: tweet_node):
+    total_cascades = len(root_node.reply_children)
+
+    cascade_with_replies = 0
+    for node in root_node.reply_children:
+        if len(node.reply_children) > 0:
+            cascade_with_replies += 1
+
+    return cascade_with_replies / total_cascades
+
+
+def get_users_in_network(prop_graph: tweet_node, edge_type=None):
+    q = queue.Queue()
+
+    q.put(prop_graph)
+
+    users_list = list()
+
+    while q.qsize() != 0:
+        node = q.get()
+
+        if edge_type == RETWEET_EDGE:
+            children = node.retweet_children
+        elif edge_type == REPLY_EDGE:
+            children = node.reply_children
+        else:
+            children = node.children
+
+        for child in children:
+            q.put(child)
+            if child.user_id is not None:
+                users_list.append(child.user_id)
+
+    return users_list
+
+
+def get_unique_users_in_graph(prop_graph: tweet_node, edge_type=None):
+    user_list = get_users_in_network(prop_graph, edge_type)
+    return len(set(user_list))
+
+
+def get_fraction_of_unique_users(prop_graph: tweet_node, edge_type=None):
+    user_list = get_users_in_network(prop_graph, edge_type)
+    try:
+        return len(set(user_list)) / len(user_list)
+    except:
+        print("Exception in fraction of unique users")
+        return 0
+
+
+def get_prop_graphs_num_unique_users(prop_graphs, edge_type=RETWEET_EDGE):
+    unique_users_cnts = []
+
+    for graph in prop_graphs:
+        unique_users_cnts.append(get_unique_users_in_graph(graph, edge_type))
+
+    return unique_users_cnts
+
+
+def get_prop_graphs_fraction_of_unique_users(prop_graphs, edge_type=RETWEET_EDGE):
+    unique_users_fract_cnts = []
+
+    for graph in prop_graphs:
+        unique_users_fract_cnts.append(get_fraction_of_unique_users(graph, edge_type))
+
+    return unique_users_fract_cnts
+
+
+
+def get_prop_graphs_fraction_of_cascades_with_replies(prop_graphs, edge_type=RETWEET_EDGE):
+    return get_sample_feature_value(prop_graphs, get_fraction_of_cascades_with_replies)
+
+
 def get_all_structural_features(news_graphs, micro_features, macro_features):
     all_features = []
     target_edge_type = RETWEET_EDGE
 
     if macro_features:
         retweet_function_references = [get_tree_heights, get_prop_graphs_node_counts, get_prop_graps_cascade_num,
-                                       get_max_outdegrees]
+                                       get_max_outdegrees, get_num_of_cascades_with_retweets,
+                                       get_fraction_of_cascades_with_retweets]
         for function_ref in retweet_function_references:
             features = function_ref(news_graphs, target_edge_type)
             all_features.append(features)
@@ -405,36 +524,53 @@ def get_all_structural_features(news_graphs, micro_features, macro_features):
 
 class StructureFeatureHelper(BaseFeatureHelper):
 
+    def get_feature_group_name(self):
+        return "struct"
+
     def get_micro_feature_method_references(self):
-        method_refs = [get_tree_heights, get_prop_graphs_node_counts, get_max_outdegrees]
+        method_refs = [get_tree_heights, get_prop_graphs_node_counts, get_max_outdegrees,
+                       get_prop_graphs_num_of_cascades_with_replies, get_prop_graphs_fraction_of_cascades_with_replies,
+                       get_prop_graphs_num_unique_users, get_prop_graphs_fraction_of_unique_users]
         return method_refs
 
     def get_micro_feature_method_names(self):
-        feature_names = ["Micro - Tree depth", "Micro - No of nodes", "Micro - Maximum out degree"]
+        feature_names = ["Micro - Tree depth", "Micro - No of nodes", "Micro - Maximum out degree",
+                         "No. of cascades with replies", "Fraction of cascades with replies"]
         return feature_names
 
     def get_micro_feature_short_names(self):
-        feature_names = ["S7", "S8", "S9"]
+        feature_names = ["S10", "S11", "S12", "S13", "S14"]
         return feature_names
 
     def get_macro_feature_method_references(self):
         method_refs = [get_tree_heights, get_prop_graphs_node_counts, get_max_outdegrees, get_prop_graps_cascade_num,
-                       get_max_out_degree_depths]
+                       get_max_out_degree_depths, get_prop_graphs_num_of_cascades_with_retweets,
+                       get_prop_graphs_fraction_of_cascades_with_retweets, get_prop_graphs_num_unique_users, get_prop_graphs_fraction_of_unique_users]
         return method_refs
 
     def get_macro_feature_method_names(self):
         feature_names = ["Macro - Tree depth", "Macro - No of nodes", "Macro - Maximum out degree",
-                         "Macro - No of cascades", "Macro - Max out degree node's level"]
+                         "Macro - No of cascades", "Macro - Max out degree node's level",
+                         "No. of cascades with retweets",
+                         "Fraction of cascades with retweets"]
+
         return feature_names
 
     feature_names = []
 
     def get_macro_feature_short_names(self):
-        feature_names = ["S1", "S2", "S3", "S4", "S5"]
+        feature_names = ["S1", "S2", "S3", "S4", "S5", "S6", "S7", "S8", "S9"]
         return feature_names
 
-    def get_features_array(self, prop_graphs, micro_features, macro_features, news_source=None, label=None):
+    def get_features_array(self, prop_graphs, micro_features, macro_features, news_source=None, label=None,
+                           file_dir="data/train_test_data"):
         all_features = []
+
+        file_name = self.get_dump_file_name(news_source, micro_features, macro_features, label, file_dir)
+        data_file = Path(file_name)
+
+        if data_file.is_file():
+            return pickle.load(open(file_name, "rb"))
 
         if micro_features:
             target_edge_type = REPLY_EDGE
@@ -451,7 +587,11 @@ class StructureFeatureHelper(BaseFeatureHelper):
                 features = function_ref(prop_graphs, target_edge_type)
                 all_features.append(features)
 
-        return np.transpose(get_numpy_array(all_features))
+        feature_array = np.transpose(get_numpy_array(all_features))
+
+        pickle.dump(feature_array, open(file_name, "wb"))
+
+        return feature_array
 
 
 if __name__ == "__main__":

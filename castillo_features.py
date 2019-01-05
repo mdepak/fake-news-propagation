@@ -26,7 +26,7 @@ from tqdm import tqdm
 # from sklearn.model_selection import train_test_split
 # from sklearn import preprocessing
 
-from analysis_util import get_propagation_graphs, equal_samples, get_numpy_array
+from analysis_util import get_propagation_graphs, equal_samples, get_numpy_array, create_dir
 from misc_process import get_reply_of_replies
 from pre_process_util import get_news_articles, load_configuration, get_database_connection
 from structure_temp_analysis import StructureFeatureHelper
@@ -656,6 +656,8 @@ def get_user_aggregate_features(db, is_fake, user_ids):
 
     user_profile_collection = db.twitter_user_profile
 
+    # np.random.shuffle(user_ids)
+
     for user_id in tqdm(user_ids):
 
         user_object = label_user_collection.find_one({"user_id": user_id}, {"profile_info.statuses_count": 1,
@@ -671,17 +673,19 @@ def get_user_aggregate_features(db, is_fake, user_ids):
         if user_object is None:
             print('user {} not found'.format(user_id))
         else:
-            pnum = user_object["profile_info"]['statuses_count']
-            fnum = user_object["profile_info"]['friends_count']
-            fonum = user_object["profile_info"]['followers_count']
-            create_time = user_object["profile_info"]['created_at']
-            date_create = datetime.strptime(create_time, '%a %b %d %H:%M:%S +0000 %Y')
-            today = datetime.now()
-            dregister = (today - date_create).days
-            posts_num.append(pnum)
-            friends_num.append(fnum)
-            followers_num.append(fonum)
-            days_register.append(dregister)
+            if "profile_info" in user_object:
+                pnum = user_object["profile_info"]['statuses_count']
+                fnum = user_object["profile_info"]['friends_count']
+                fonum = user_object["profile_info"]['followers_count']
+                create_time = user_object["profile_info"]['created_at']
+                date_create = datetime.strptime(create_time, '%a %b %d %H:%M:%S +0000 %Y')
+                today = datetime.now()
+                dregister = (today - date_create).days
+                posts_num.append(pnum)
+                friends_num.append(fnum)
+                followers_num.append(fonum)
+                days_register.append(dregister)
+
     try:
         avg_posts_num = sum(posts_num) / len(posts_num)
     except:
@@ -719,18 +723,29 @@ def get_castillo_features(db, news_source, raw_data_dir, label, prop_graphs):
     structure_features = structure_feature_helper.get_features_array(prop_graphs, micro_features=False,
                                                                      macro_features=True)
 
-    return np.concatenate([get_numpy_array(all_features), np.transpose(get_numpy_array(structure_features)[0, 1, 2])],
-                          axis=1)
+    other_features = get_numpy_array(all_features)
+    structure_features = get_numpy_array(structure_features)[:, [0, 1, 2]]
+    print("Other features shape")
+    print(other_features.shape)
+
+    print("Structure features shape")
+    print(structure_features.shape)
+    return np.concatenate([other_features, structure_features], axis=1)
 
 
 def dump_castillo_features(db, news_source, raw_data_dir, feature_out_dir, prop_graphs_dir):
     fake_prop_graph, real_prop_graph = get_propagation_graphs(prop_graphs_dir, news_source)
     fake_prop_graph, real_prop_graph = equal_samples(fake_prop_graph, real_prop_graph)
 
+    create_dir(feature_out_dir)
+
     fake_castillo_features = get_castillo_features(db, news_source, raw_data_dir, "fake", fake_prop_graph)
     real_castillo_features = get_castillo_features(db, news_source, raw_data_dir, "real", real_prop_graph)
 
     all_castillo_features = np.concatenate([fake_castillo_features, real_castillo_features])
+
+    print("All castillo features")
+    print(all_castillo_features.shape, flush=True)
 
     pickle.dump(all_castillo_features, open("{}/{}_castillo_features.pkl".format(feature_out_dir, news_source), "wb"))
 
@@ -747,7 +762,7 @@ def get_raw_feature_for_news(news):
         get_reply_of_replies(tweet["reply"], reply_id_content_dict)
 
     data["id"] = news["id"]
-    data["user_ids"] = list(user_ids)[:500]
+    data["user_ids"] = list(user_ids)
     data["reply_id_content_dict"] = reply_id_content_dict
 
     return data
@@ -778,6 +793,8 @@ def get_castillo_raw_data(data_dir, prop_graphs_dir, out_dir, news_source):
 
     fake_prop_graph, real_prop_graph = equal_samples(fake_prop_graph, real_prop_graph)
 
+    create_dir(out_dir)
+
     fake_castillo_raw_data = get_castillo_data(data_dir, fake_prop_graph, news_source, "fake")
     real_castillo_raw_data = get_castillo_data(data_dir, real_prop_graph, news_source, "real")
 
@@ -795,13 +812,19 @@ def get_castillo_feature_array(news_source, castillo_feature_dir):
     return None
 
 
+
 if __name__ == '__main__':
     config = load_configuration("project.config")
     db = get_database_connection(config)
     news_source = "politifact"
 
-    # get_castillo_raw_data("data/engagement_data_latest", "data/saved_new_no_filter", "data/castillo/raw_data",
-    #                       news_source)
+    for news_source in ["politifact", "gossipcop"]:
+        # get_castillo_raw_data("data/engagement_data_latest", "data/saved_new_no_filter", "data/castillo/raw_data",
+        #                       news_source)
+        #
+        # print("Raw data dumped", flush=True)
 
-    dump_castillo_features(db, news_source, "data/castillo/raw_data", "data/castillo/saved_features",
-                           "data/saved_new_no_filter")
+        dump_castillo_features(db, news_source, "data/castillo/raw_data", "data/castillo/saved_features",
+                               "data/saved_new_no_filter")
+
+        print("Castillo features for {} dumped".format(news_source), flush=True)

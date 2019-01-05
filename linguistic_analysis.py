@@ -1,4 +1,5 @@
 import pickle
+from pathlib import Path
 
 import numpy as np
 import queue
@@ -227,6 +228,9 @@ def dump_tweet_reply_sentiment(data_dir, out_dir):
 
 class LinguisticFeatureHelper(BaseFeatureHelper):
 
+    def get_feature_group_name(self):
+        return "ling"
+
     def get_micro_feature_method_references(self):
         method_refs = [get_reply_nodes_sentiment_ratio,
                        get_reply_nodes_average_sentiment,
@@ -267,8 +271,14 @@ class LinguisticFeatureHelper(BaseFeatureHelper):
         feature_names = []
         return feature_names
 
-    def get_features_array(self, prop_graphs, micro_features, macro_features, news_source=None, label=None):
+    def get_features_array(self, prop_graphs, micro_features, macro_features, news_source=None, label=None, file_dir="data/train_test_data"):
         function_refs = []
+
+        file_name = self.get_dump_file_name(news_source, micro_features, macro_features, label, file_dir)
+        data_file = Path(file_name)
+
+        if data_file.is_file():
+            return pickle.load(open(file_name, "rb"))
 
         if micro_features:
             function_refs.extend(self.get_micro_feature_method_references())
@@ -284,7 +294,10 @@ class LinguisticFeatureHelper(BaseFeatureHelper):
 
         all_features.append(get_feature_involving_additional_args(prop_graphs, function_refs[-1],news_source, label))
 
-        return np.transpose(get_numpy_array(all_features))
+        feature_array = np.transpose(get_numpy_array(all_features))
+        pickle.dump(feature_array, open(file_name, "wb"))
+
+        return feature_array
 
 
 
