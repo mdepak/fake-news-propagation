@@ -1,8 +1,28 @@
 import numpy as np
 import pickle
 
+from analysis_util import get_propagation_graphs, equal_samples
 from basic_model import get_basic_model_results, dump_random_forest_feature_importance
 from construct_sample_features import get_train_test_split
+from structure_temp_analysis import ScienceCascadeFeatureHelper
+
+
+def get_science_dataset_array(news_source):
+    fake_prop_graph, real_prop_graph = get_propagation_graphs("data/saved_new_no_filter", news_source)
+    fake_prop_graph, real_prop_graph = equal_samples(fake_prop_graph, real_prop_graph)
+    feature_helper = ScienceCascadeFeatureHelper()
+    include_micro = False
+    include_macro = True
+
+    fake_features = feature_helper.get_features_array(fake_prop_graph, micro_features=include_micro,
+                                                      macro_features=include_macro, news_source=news_source,
+                                                      label="fake")
+    real_features = feature_helper.get_features_array(real_prop_graph, micro_features=include_micro,
+                                                      macro_features=include_macro, news_source=news_source,
+                                                      label="real")
+
+    return np.concatenate([fake_features, real_features])
+
 
 
 def get_castillo_features(news_source, castillo_feature_folder="data/castillo/saved_features"):
@@ -22,11 +42,15 @@ def get_liwc_features(news_source, feature_folder = "data/baseline_features/liwc
 
     return feature_array
 
-def get_rst_features(news_source):
-    pass
+def get_rst_features(news_source, rst_feature_folder = "data/baseline_features/rst/raw_parsed_data"):
+    fake_features = np.loadtxt("{}/{}_fake_rst_features.csv".format(rst_feature_folder, news_source), delimiter='\t')
+    real_features = np.loadtxt("{}/{}_real_rst_features.csv".format(rst_feature_folder, news_source), delimiter='\t')
+    feature_array = np.concatenate([fake_features, real_features])
+
+    return feature_array
 
 
-def get_sample_feature_array(news_source, tpnf=False, castillo=False, liwc=False, rst=False):
+def get_sample_feature_array(news_source, tpnf=False, castillo=False, liwc=False, rst=False, stfn  = False):
     feature_arrays = []
 
     if tpnf:
@@ -41,6 +65,9 @@ def get_sample_feature_array(news_source, tpnf=False, castillo=False, liwc=False
     if rst:
         feature_arrays.append(get_rst_features(news_source))
 
+    if stfn:
+        feature_arrays.append(get_science_dataset_array(news_source))
+
     all_feature_array = np.concatenate(feature_arrays, axis=1)
 
     print("Baseline feature array")
@@ -49,8 +76,8 @@ def get_sample_feature_array(news_source, tpnf=False, castillo=False, liwc=False
     return all_feature_array
 
 
-def get_baselines_classificaton_result(news_source, tpnf=False, castillo=False, liwc=False, rst=False):
-    sample_feature_array = get_sample_feature_array(news_source, tpnf, castillo, liwc, rst)
+def get_baselines_classificaton_result(news_source, tpnf=False, castillo=False, liwc=False, rst=False, stfn = False):
+    sample_feature_array = get_sample_feature_array(news_source, tpnf, castillo, liwc, rst , stfn)
 
     print("Sample feature array dimensions")
     print(sample_feature_array.shape, flush=True)
@@ -63,7 +90,7 @@ def get_baselines_classificaton_result(news_source, tpnf=False, castillo=False, 
 
 
 if __name__ == "__main__":
-    get_baselines_classificaton_result("politifact", tpnf=False, castillo=False, liwc=True, rst=False)
+    get_baselines_classificaton_result("gossipcop", tpnf=True, castillo=False, liwc=False, rst=False, stfn=True)
 
     # feature_array = get_castillo_features("politifact")
     # num_samples = int(feature_array.shape[0]/2)

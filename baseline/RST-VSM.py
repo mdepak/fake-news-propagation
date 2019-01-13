@@ -23,9 +23,11 @@ from sklearn.neighbors import KNeighborsClassifier
 from xgboost import XGBClassifier
 
 
-def RSTRepresentation(data_type):
-    dir_path = './'+data_type+'/RST'
-    f_out = open('./'+data_type+'/RSTFeats.txt','w+')
+def RSTRepresentation(data_type, out_file):
+    # dir_path = './'+data_type+'/'
+    dir_path = data_type
+
+    f_out = open(out_file,'w+')
     all_relations = set()
     org_files = [f for f in listdir(dir_path) if isfile(join(dir_path, f))]
     News_RSTFeats = dict()
@@ -235,8 +237,14 @@ def RSTPrediction2_curve(data_type):
 
 if __name__ == '__main__':
     data_type = 'PolitiFact'
+
+    RSTRepresentation("data/baseline_features/rst/raw_parsed_data/politifact_fake",
+                      "data/baseline_features/rst/raw_parsed_data/politifact_fake_rst_features.txt")
+    RSTRepresentation("data/baseline_features/rst/raw_parsed_data/politifact_real",
+                      "data/baseline_features/rst/raw_parsed_data/politifact_real_rst_features.txt")
+
     # RSTRepresentation(data_type)
     # RSTPrediction2('BuzzFeed')
     # RSTPrediction2('PolitiFact')
-    RSTPrediction2_curve('BuzzFeed')
-    RSTPrediction2_curve('PolitiFact')
+    # RSTPrediction2_curve('BuzzFeed')
+    # RSTPrediction2_curve('PolitiFact')

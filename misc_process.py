@@ -1,3 +1,4 @@
+import csv
 import json
 import mmap
 import os
@@ -7,6 +8,7 @@ import string
 import sys
 import traceback
 from datetime import datetime
+from pathlib import Path
 
 import datefinder
 import requests
@@ -419,9 +421,114 @@ def get_replies_from_dataset(dataset_dir, news_source, label, out_dir):
                 open("{}/{}_{}_reply_id_content_dict.pkl".format(out_dir, news_source, label), "wb"))
 
 
+def dump_all_botometer_results(db):
+    screen_name_botometer_score_dict = dict()
+
+    for user_score in db.twitter_user_botometer_results.find():
+        screen_name_botometer_score_dict[user_score["screen_name"]] = user_score["result"]
+
+    pickle.dump(screen_name_botometer_score_dict, open("all_user_botometer_scores.pkl", "wb"))
+
+
+def dump_all_user_profile_info(db, is_fake, label):
+    user_id_profile_info = dict()
+
+    all_users_ids = pickle.load(open("all_prop_graph_{}_user.pkl".format(label), "rb"))
+
+    if is_fake:
+        user_profile_collection = db.fake_twitter_user_profile
+    else:
+        user_profile_collection = db.real_twitter_user_profile
+
+    for user_id in tqdm(all_users_ids):
+        user_object = user_profile_collection.find_one({"user_id": user_id}, {"profile_info.statuses_count": 1,
+                                                                              "profile_info.friends_count": 1,
+                                                                              "profile_info.followers_count": 1,
+                                                                              "profile_info.created_at": 1})
+        if user_object is None:
+            user_object = db.twitter_user_profile.find_one({"user_id": user_id}, {"profile_info.statuses_count": 1,
+                                                                                  "profile_info.friends_count": 1,
+                                                                                  "profile_info.followers_count": 1,
+                                                                                  "profile_info.created_at": 1})
+        if user_object and "profile_info" in user_object:
+            user_id_profile_info[user_id] = user_object["profile_info"]
+
+    print("No. of users found : {}".format(len(user_id_profile_info)))
+
+    pickle.dump(user_id_profile_info, open("all_{}_user_profile_info.pkl".format(label), "wb"))
+
+
+def get_user_aggregate_features(db, is_fake, user_names):
+    dump_folder = "/home/dmahudes/fake_user_profiles"
+
+    if is_fake:
+        label_user_collection = db.fake_twitter_user_profile
+    else:
+        label_user_collection = db.real_twitter_user_profile
+
+    user_profile_collection = db.twitter_user_profile
+
+    # np.random.shuffle(user_ids)
+
+    for user_name in tqdm(user_names):
+
+        user_object = label_user_collection.find_one({"screen_name": user_name}, {"screen_name": 1, "user_id": 1,
+                                                                                  "profile_info": 1, "_id": 0})
+        if user_object is None:
+            user_object = user_profile_collection.find_one({"user_id": user_name}, {"screen_name": 1, "user_id": 1,
+                                                                                    "profile_info": 1, "_id": 0})
+
+        if user_object is None:
+            print('user {} not found'.format(user_name))
+        else:
+            json.dump(user_object, open("{}/{}.json".format(dump_folder, user_name), "w"))
+
+
+def remove_escape_characters(text_content):
+    text_content = text_content.replace('\n', ' ')
+    text_content = text_content.replace('\t', ' ')
+    words = text_content.split(" ")
+    return " ".join(words[:1000])
+
+
+def get_missing_rst_news_content():
+    news_source = "gossipcop"
+
+    file = "/Users/deepak/Downloads/{}_content_no_ignore.tsv".format(news_source)
+    rst_folder = "/Users/deepak/Desktop/DMML/GitRepo/FakeNewsPropagation/data/baseline_features/rst/raw_parsed_data/{}".format(
+        news_source)
+
+    out_folder = "data/baseline_features/rst/raw_parsed_data/{}_kai".format(news_source)
+
+    missing_files = set()
+    with open(file, encoding="UTF-8") as file:
+        reader = csv.reader(file, delimiter='\t')
+        for news in reader:
+            expected_file = "{}/{}.txt.brackets".format(rst_folder, news[0])
+            file = Path(expected_file)
+            if file.is_file():
+                with open("{}/{}.txt".format(out_folder, news[0]), "w", encoding="UTF-8") as out_file:
+                    out_file.write(remove_escape_characters(news[2]))
+            else:
+                missing_files.add(news[0])
+
+    print("No. of missing files : {}".format(len(missing_files)))
+
+
 if __name__ == "__main__":
     config = load_configuration("project.config")
     db = get_database_connection(config)
+
+    get_missing_rst_news_content()
+    # get_user_aggregate_features(db, is_fake=True,
+    #                             user_names=["News1Lightning", "OfeliasHeaven", "jimbradyispapa", "CraigRozniecki",
+    #                                         "yojudenz",
+    #                                         "GinaLawriw", "GossipCop", "GossipCopIntern", "findsugarmummy",
+    #                                         "DJDavidNewsroom"])
+    # dump_all_user_profile_info(db, is_fake=True, label="fake")
+    # dump_all_user_profile_info(db, is_fake=False, label="real")
+
+    exit(1)
 
     # get_replies_from_dataset("data/engagement_data_latest","politifact","fake","data/pre_process_data")
     # get_replies_from_dataset("data/engagement_data_latest", "politifact", "real", "data/pre_process_data")

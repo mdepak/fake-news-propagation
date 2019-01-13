@@ -1,5 +1,7 @@
 import csv
 import pickle
+from os import listdir
+from os.path import isfile, join
 
 import numpy as np
 
@@ -177,19 +179,91 @@ def dump_LIWC_Representation(liwc_file_path, output_file):
     f_out.close()
 
 
+def dump_ordered_rst_representation(rst_folder, news_source, fake_out_file, real_out_file):
+    dir_path = rst_folder
+
+    all_relations = set()
+    org_files = [f for f in listdir(dir_path) if isfile(join(dir_path, f))]
+    News_RSTFeats = dict()
+    for of in org_files:
+        ID = of[:of.index('.txt')]
+        file_name = dir_path + '/' + of
+        relation_num = dict()
+        with open(file_name) as f_rst:
+            for line in f_rst:
+                line = line.replace('\'', '')
+                line = line.replace(' ', '')
+                tmp_relation = line.split(',')[3]
+                relation = tmp_relation[:-2]
+                all_relations.add(relation)
+                if relation in relation_num:
+                    num = relation_num[relation]
+                    num += 1
+                    relation_num[relation] = num
+                else:
+                    relation_num[relation] = 1
+        News_RSTFeats[ID] = relation_num
+
+    all_relations = list(all_relations)
+    print(all_relations)
+
+    fake_ordered_sample_ids = pickle.load(
+        open("data/baseline_data/{}_{}_sample_news_ordered_ids.pkl".format(news_source, "fake"), "rb"))
+
+    f_out = open(fake_out_file, 'w+')
+    for news_id in fake_ordered_sample_ids:
+        # for news, rn in News_RSTFeats.items():
+        #     f_out.write(news + '\t')
+        rn = News_RSTFeats[news_id]
+        feats = []
+        for al in all_relations:
+            if al in rn:
+                num = rn[al]
+            else:
+                num = 0
+            feats.append(num)
+        f_out.write('\t'.join(str(x) for x in feats))
+        f_out.write('\n')
+    f_out.close()
+
+    real_ordered_sample_ids = pickle.load(
+        open("data/baseline_data/{}_{}_sample_news_ordered_ids.pkl".format(news_source, "real"), "rb"))
+
+    f_out = open(real_out_file, 'w+')
+    for news_id in real_ordered_sample_ids:
+        # for news, rn in News_RSTFeats.items():
+        #     f_out.write(news + '\t')
+        rn = News_RSTFeats[news_id]
+        feats = []
+        for al in all_relations:
+            if al in rn:
+                num = rn[al]
+            else:
+                num = 0
+            feats.append(num)
+        f_out.write('\t'.join(str(x) for x in feats))
+        f_out.write('\n')
+    f_out.close()
+
+
 if __name__ == "__main__":
     # get_news_ids_used_for_propagation_network("politifact")
 
     config = load_configuration("project.config")
     db = get_database_connection(config)
 
-    news_source = "politifact"
+    news_source = "gossipcop"
 
-    dump_LIWC_Representation("data/baseline_features/liwc_features/LIWC2015_{}_fake_text_contents_ordered_new.txt".format(news_source),
-                             "data/baseline_features/liwc_features/{}_fake_liwc.csv".format(news_source))
+    dump_ordered_rst_representation("data/baseline_features/rst/raw_parsed_data/gossipcop",news_source,
+                                    "data/baseline_features/rst/raw_parsed_data/gossipcop_fake_rst_features.csv",
+                                    "data/baseline_features/rst/raw_parsed_data/gossipcop_real_rst_features.csv"
+                                    )
 
-    dump_LIWC_Representation("data/baseline_features/liwc_features/LIWC2015_{}_real_text_contents_ordered_new.txt".format(news_source),
-                             "data/baseline_features/liwc_features/{}_real_liwc.csv".format(news_source))
+    # dump_LIWC_Representation("data/baseline_features/liwc_features/LIWC2015_{}_fake_text_contents_ordered_new.txt".format(news_source),
+    #                          "data/baseline_features/liwc_features/{}_fake_liwc.csv".format(news_source))
+    #
+    # dump_LIWC_Representation("data/baseline_features/liwc_features/LIWC2015_{}_real_text_contents_ordered_new.txt".format(news_source),
+    #                          "data/baseline_features/liwc_features/{}_real_liwc.csv".format(news_source))
 
     exit(1)
 

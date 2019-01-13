@@ -10,7 +10,7 @@ import pickle
 from tqdm import tqdm
 from pymongo import MongoClient
 
-from analysis_util import sort_retweet_object_by_time
+from analysis_util import sort_retweet_object_by_time, get_propagation_graphs
 from misc_process import get_politifact_tweet_filter_dates
 from pre_process_util import load_configuration, get_database_connection, get_news_articles
 from util.constants import RETWEET_NODE, NEWS_ROOT_NODE, POST_NODE, REPLY_NODE
@@ -370,8 +370,8 @@ def dump_files_as_lines(dataset_file, out_file):
 
 
 if __name__ == "__main__":
-    politifact_fake_dataset_file = "data/politifact_fake_news_dataset.json"
-    politifact_real_dataset_file = "data/politifact_real_news_dataset.json"
+    # politifact_fake_dataset_file = "data/politifact_fake_news_dataset.json"
+    # politifact_real_dataset_file = "data/politifact_real_news_dataset.json"
 
     politifact_fake_user_friends_file = "data/politifact_fake_user_friends_ids_complete.txt"
 
@@ -390,8 +390,8 @@ if __name__ == "__main__":
     # constuct_dataset_forests("data/engagement_data_latest", "data/social_network_data", "data/saved_new_no_filter", "gossipcop", "fake",
     #                          db, is_fake=True)
 
-    constuct_dataset_forests("data/engagement_data_latest", "data/social_network_data", "data/saved_new_no_filter", "gossipcop", "real", db,
-                             is_fake=False)
+    # constuct_dataset_forests("data/engagement_data_latest", "data/social_network_data", "data/saved_new_no_filter", "gossipcop", "real", db,
+    #                          is_fake=False)
 
 
     # constuct_dataset_forests("data/engagement_data", "data/social_network_data", "data/saved", "gossipcop", "fake")
@@ -403,16 +403,18 @@ if __name__ == "__main__":
     # analyze_height(fake_news_graphs)
     # analyze_height(real_news_graphs)
 
+    fake_news_graphs, real_news_graphs = get_propagation_graphs("data/saved_new_no_filter", "politifact")
+
     # [fake_news_graphs, fake_tweet_info] = dump_graphs(fake_news_graphs)
-    #
-    # [real_news_graphs, real_tweet_info] = dump_graphs(real_news_graphs)
+
+    [real_news_graphs, real_tweet_info] = dump_graphs(real_news_graphs)
     # json.dump(news_graphs, open("data/saved/news_graphs.json", "w"))
     # json.dump(tweet_info, open("data/saved/tweet_info.json", "w"))
 
     # config = load_configuration("project.config")
     # db = get_database_connection(config)
 
-    # write_graph_data_to_db(db, fake_news_graphs, real_tweet_info)
+    write_graph_data_to_db(db, real_news_graphs, None)
 
     # analyze_height(news_graphs, "retweet")
     # analyze_height(news_graphs)
