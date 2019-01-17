@@ -5,7 +5,7 @@ from pathlib import Path
 import numpy as np
 import pickle
 
-from stat_test import get_box_plots, perform_t_test
+from stat_test import get_box_plots, perform_t_test, get_box_plots_mod
 from util.util import twitter_datetime_str_to_object, tweet_node
 
 from abc import ABCMeta, abstractmethod
@@ -120,7 +120,8 @@ class BaseFeatureHelper(metaclass=ABCMeta):
         for idx in range(len(feature_names)):
             fake_feature_values = fake_feature_array[:, idx]
             real_feature_values = real_feature_array[:, idx]
-            get_box_plots(fake_feature_values, real_feature_values, save_folder, feature_names[idx],
+
+            get_box_plots_mod(fake_feature_values, real_feature_values, save_folder, feature_names[idx],
                           short_feature_names[idx])
 
     def get_feature_significance_t_tests(self, fake_feature_array, real_feature_array, micro_features=None,

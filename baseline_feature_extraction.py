@@ -172,7 +172,7 @@ def dump_LIWC_Representation(liwc_file_path, output_file):
                 continue
             ID = all_data[0]
             feats = all_data[2:]
-            # f_out.write(ID + '\t')
+            f_out.write(ID + ',')
             f_out.write(','.join(f for f in feats))
             f_out.write('\n')
 

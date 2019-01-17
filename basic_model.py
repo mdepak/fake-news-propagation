@@ -103,9 +103,9 @@ def get_classificaton_results_tpnf(data_dir, news_source):
     include_micro = True
     include_macro = True
 
-    include_structural = False
+    include_structural = True
     include_temporal = False
-    include_linguistic = True
+    include_linguistic = False
 
     sample_feature_array = get_TPNF_dataset(data_dir, news_source, include_micro, include_macro, include_structural,
                                             include_temporal, include_linguistic)
@@ -141,9 +141,12 @@ def dump_random_forest_feature_importance(data_dir, news_source):
     sample_feature_array = get_TPNF_dataset(data_dir, news_source, include_micro, include_macro, include_structural,
                                             include_temporal, include_linguistic)
 
+    sample_feature_array = sample_feature_array[:,:-1]
     feature_names, short_feature_names = get_dataset_feature_names(include_micro, include_macro, include_structural,
                                                                    include_temporal, include_linguistic)
 
+    feature_names = feature_names[:-1]
+    short_feature_names = short_feature_names[:-1]
     num_samples = int(len(sample_feature_array) / 2)
     target_labels = np.concatenate([np.ones(num_samples), np.zeros(num_samples)], axis=0)
 
@@ -172,7 +175,7 @@ def dump_random_forest_feature_importance(data_dir, news_source):
 
     # Plot the feature importances of the forest
     plt.figure()
-    plt.title("Feature importances - GossipCop dataset")
+    plt.title("Feature importances - PolitiFact dataset")
 
 
 
@@ -267,5 +270,6 @@ def dump_random_forest_feature_importance(data_dir, news_source):
 
 if __name__ == "__main__":
     get_classificaton_results_tpnf("data/train_test_data", "gossipcop")
+
     # dump_feature_importance("data/train_test_data", "politifact")
-    # dump_random_forest_feature_importance("data/train_test_data", "gossipcop")
+    # dump_random_forest_feature_importance("data/train_test_data", "politifact")

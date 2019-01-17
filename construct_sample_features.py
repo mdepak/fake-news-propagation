@@ -10,7 +10,7 @@ from sklearn.model_selection import train_test_split
 
 from analysis_util import get_propagation_graphs, equal_samples
 from linguistic_analysis import get_all_linguistic_features, LinguisticFeatureHelper
-from structure_temp_analysis import get_all_structural_features, StructureFeatureHelper
+from structure_temp_analysis import get_all_structural_features, StructureFeatureHelper, ScienceCascadeFeatureHelper
 from temporal_analysis import get_all_temporal_features, TemporalFeatureHelper
 
 
@@ -54,7 +54,7 @@ def get_dataset(news_source, load_dataset=False, micro_features=True, macro_feat
 
 
 def get_train_test_split(samples_features, target_labels):
-    X_train, X_test, y_train, y_test = train_test_split(samples_features, target_labels, stratify = target_labels,
+    X_train, X_test, y_train, y_test = train_test_split(samples_features, target_labels, stratify=target_labels,
                                                         test_size=0.2, random_state=42)
     return X_train, X_test, y_train, y_test
 
@@ -112,7 +112,6 @@ def get_TPNF_dataset(out_dir, news_source, include_micro=True, include_macro=Tru
 def get_dataset_feature_names(include_micro=True, include_macro=True, include_structural=None,
                               include_temporal=None,
                               include_linguistic=None):
-
     feature_helpers = []
 
     if include_structural:
@@ -143,7 +142,6 @@ def get_dataset_feature_array(news_source, include_micro=True, include_macro=Tru
 
     fake_prop_graph, real_prop_graph = equal_samples(fake_prop_graph, real_prop_graph)
 
-
     feature_helpers = []
     feature_group_names = []
 
@@ -158,7 +156,6 @@ def get_dataset_feature_array(news_source, include_micro=True, include_macro=Tru
     if include_linguistic:
         feature_helpers.append(LinguisticFeatureHelper())
         feature_group_names.append("Linguistic")
-
 
     fake_feature_all = []
     real_feature_all = []
@@ -178,7 +175,7 @@ def get_dataset_feature_array(news_source, include_micro=True, include_macro=Tru
             print(len(fake_features))
             print(len(real_features), flush=True)
 
-    return np.concatenate(fake_feature_all, axis=1), np.concatenate(real_feature_all,axis=1)
+    return np.concatenate(fake_feature_all, axis=1), np.concatenate(real_feature_all, axis=1)
 
 
 def get_dataset_statistics(news_source):
@@ -188,9 +185,10 @@ def get_dataset_statistics(news_source):
 
     # feature_helpers = []
 
-    feature_helpers = [StructureFeatureHelper() , LinguisticFeatureHelper()]
-    # feature_helpers = [LinguisticFeatureHelper()]
-    feature_group_names = ["StructureFeatureHelper",  "LinguisticFeatureHelper" ]
+    # feature_helpers = [StructureFeatureHelper() , LinguisticFeatureHelper()]
+    feature_helpers = [TemporalFeatureHelper()]
+    # feature_group_names = ["StructureFeatureHelper",  "LinguisticFeatureHelper" ]
+    feature_group_names = ["TemporalFeatureHelper"]
 
     for idx, feature_helper in enumerate(feature_helpers):
 
@@ -201,20 +199,25 @@ def get_dataset_statistics(news_source):
         real_features = feature_helper.get_features_array(real_prop_graph, micro_features=True,
                                                           macro_features=True, news_source=news_source, label="real")
 
+        # if feature_group_names[idx] == "TemporalFeatureHelper":
+        #     fake_features = np.array(fake_features) / 60
+        #     real_features = np.array(real_features) / 60
+
         feature_helper.save_blox_plots_for_features(fake_feature_array=fake_features,
                                                     real_feature_array=real_features, micro_features=True,
-                                                    macro_features=True, save_folder="data/feature_images/gossipcop")
+                                                    macro_features=True,
+                                                    save_folder="data/feature_images/{}".format(news_source))
 
         feature_helper.get_feature_significance_t_tests(fake_features,real_features,micro_features=True, macro_features=True)
 
         # Print the statistics of the dataset
-        print("------------Fake------------")
-        feature_helper.print_statistics_for_all_features(feature_array=fake_features, prop_graphs=fake_prop_graph,
-                                                         micro_features=True, macro_features=True)
-
-        print("------------Real------------")
-        feature_helper.print_statistics_for_all_features(feature_array=real_features, prop_graphs=fake_prop_graph,
-                                                         micro_features=True, macro_features=True)
+        # print("------------Fake------------")
+        # feature_helper.print_statistics_for_all_features(feature_array=fake_features, prop_graphs=fake_prop_graph,
+        #                                                  micro_features=True, macro_features=True)
+        #
+        # print("------------Real------------")
+        # feature_helper.print_statistics_for_all_features(feature_array=real_features, prop_graphs=fake_prop_graph,
+        #                                                  micro_features=True, macro_features=True)
 
 
 if __name__ == "__main__":

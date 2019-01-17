@@ -3,7 +3,9 @@ import json
 import mmap
 import os
 import pickle
+import queue
 import re
+import shutil
 import string
 import sys
 import traceback
@@ -18,7 +20,11 @@ from pymongo import UpdateOne
 from tqdm import tqdm
 import newspaper
 
+from analysis_util import get_propagation_graphs
+from baseline_feature_extraction import dump_LIWC_Representation
 from pre_process_util import load_configuration, get_database_connection, get_news_articles
+from util.constants import RETWEET_EDGE, REPLY_EDGE, RETWEET_NODE, REPLY_NODE
+from util.util import tweet_node
 
 
 def get_reply_of_replies(replies: list, result_dict: dict):
@@ -485,6 +491,7 @@ def get_user_aggregate_features(db, is_fake, user_names):
 
 
 def remove_escape_characters(text_content):
+    text_content = text_content.replace(',', ' ')
     text_content = text_content.replace('\n', ' ')
     text_content = text_content.replace('\t', ' ')
     words = text_content.split(" ")
@@ -495,31 +502,196 @@ def get_missing_rst_news_content():
     news_source = "gossipcop"
 
     file = "/Users/deepak/Downloads/{}_content_no_ignore.tsv".format(news_source)
-    rst_folder = "/Users/deepak/Desktop/DMML/GitRepo/FakeNewsPropagation/data/baseline_features/rst/raw_parsed_data/{}".format(
-        news_source)
+    # rst_folder = "/Users/deepak/Desktop/DMML/GitRepo/FakeNewsPropagation/data/baseline_features/rst/raw_parsed_data/{}".format(
+    #     news_source)
+    #
+    # out_folder = "data/baseline_features/rst/raw_parsed_data/{}_kai".format(news_source)
 
-    out_folder = "data/baseline_features/rst/raw_parsed_data/{}_kai".format(news_source)
+    fake_news_ids = list()
+
+    real_news_ids = list()
+
+    all_news_folder = "data/baseline_data_kai/all_{}".format(news_source)
+
+    kai_data_folder = "/Users/deepak/Desktop/DMML/GitRepo/FakeNewsPropagation/data/baseline_data_kai/kai_{}".format(
+        news_source)
 
     missing_files = set()
     with open(file, encoding="UTF-8") as file:
-        reader = csv.reader(file, delimiter='\t')
+        reader = csv.reader(file, delimiter='\t', )
+        next(reader)
+
         for news in reader:
-            expected_file = "{}/{}.txt.brackets".format(rst_folder, news[0])
-            file = Path(expected_file)
-            if file.is_file():
-                with open("{}/{}.txt".format(out_folder, news[0]), "w", encoding="UTF-8") as out_file:
-                    out_file.write(remove_escape_characters(news[2]))
+
+            if news[1] == '1':
+                fake_news_ids.append(news[0])
             else:
-                missing_files.add(news[0])
+                real_news_ids.append(news[0])
+
+            expected_file = "{}/{}.txt.brackets".format(all_news_folder, news[0])
+            out_file = "{}/{}.txt.brackets".format(kai_data_folder, news[0])
+
+            file = Path(expected_file)
+            todofile = Path("data/baseline_data_kai/{}_missed/{}.json".format(news_source, news[0]))
+            if file.is_file():
+                shutil.copy(expected_file, out_file)
+            elif todofile.is_file():
+                pass
+            else:
+                missing_files.add(expected_file)
+                with open("data/baseline_data_kai/{}_missed/{}.json".format(news_source, news[0]), "w",
+                          encoding="UTF-8") as out_file:
+                    out_file.write(remove_escape_characters(news[2]))
+            # file = Path(expected_file)
+            # if file.is_file():
+            #     with open("{}/{}.txt".format(out_folder, news[0]), "w", encoding="UTF-8") as out_file:
+            #         out_file.write(remove_escape_characters(news[2]))
+            # else:
+            #     missing_files.add(news[0])
+
+    pickle.dump(fake_news_ids,
+                open("data/baseline_data_kai/{}_{}_sample_news_ordered_ids.pkl".format(news_source, "fake"), "wb"))
+    pickle.dump(real_news_ids,
+                open("data/baseline_data_kai/{}_{}_sample_news_ordered_ids.pkl".format(news_source, "real"), "wb"))
 
     print("No. of missing files : {}".format(len(missing_files)))
+
+
+def get_files_for_liwc_parsing():
+    news_source = "gossipcop"
+
+    file = "/Users/deepak/Downloads/{}_content_no_ignore.tsv".format(news_source)
+
+    fake_data_file = open("data/baseline_data_kai/liwc/raw_data/{}_fake_liwc_data.csv".format(news_source), "w",
+                          encoding="UTF-8")
+
+    real_data_file = open("data/baseline_data_kai/liwc/raw_data/{}_real_liwc_data.csv".format(news_source), "w",
+                          encoding="UTF-8")
+
+    fake_csv_writer = csv.writer(fake_data_file)
+    real_csv_writer = csv.writer(real_data_file)
+
+    with open(file, encoding="UTF-8") as file:
+        reader = csv.reader(file, delimiter='\t', )
+        next(reader)
+
+        for news in reader:
+            csv_row = [news[0], remove_escape_characters(news[2])]
+
+            if news[1] == '1':
+                fake_csv_writer.writerow(csv_row)
+            else:
+                real_csv_writer.writerow(csv_row)
+
+    fake_data_file.close()
+    real_data_file.close()
+
+
+def get_users_in_network(prop_graph: tweet_node, edge_type=None):
+    q = queue.Queue()
+
+    q.put(prop_graph)
+
+    users_list = set()
+
+    while q.qsize() != 0:
+        node = q.get()
+
+        if node.user_id is not None:
+            users_list.add(node.user_id)
+
+        if edge_type == RETWEET_EDGE:
+            children = node.retweet_children
+        elif edge_type == REPLY_EDGE:
+            children = node.reply_children
+        else:
+            children = node.children
+
+        for child in children:
+            q.put(child)
+
+    return users_list
+
+
+def get_node_ids_in_network_by_type(prop_graph: tweet_node, edge_type=None, node_type=None):
+    q = queue.Queue()
+
+    q.put(prop_graph)
+
+    node_ids_set = set()
+
+    while q.qsize() != 0:
+        node = q.get()
+
+        if node.tweet_id is not None and node.node_type == node_type:
+            node_ids_set.add(node.tweet_id)
+
+        if edge_type == RETWEET_EDGE:
+            children = node.retweet_children
+        elif edge_type == REPLY_EDGE:
+            children = node.reply_children
+        else:
+            children = node.children
+
+        for child in children:
+            q.put(child)
+
+    return node_ids_set
+
+
+def get_tweets_ids_in_prop_network(prop_graph: tweet_node):
+    tweet_ids = set()
+
+    for child in prop_graph.children:
+        tweet_ids.add(child.tweet_id)
+
+    return tweet_ids
+
+
+def prop_network_stats(news_source):
+    fake_prop_graph, real_prop_graph = get_propagation_graphs("data/saved_new_no_filter", news_source)
+
+    tweet_ids = set()
+    retweet_ids = set()
+    reply_ids = set()
+    user_ids = set()
+
+    for prop_graph in fake_prop_graph:
+        tweet_ids.update(get_tweets_ids_in_prop_network(prop_graph))
+        retweet_ids.update(get_node_ids_in_network_by_type(prop_graph, RETWEET_EDGE, RETWEET_NODE))
+        reply_ids.update(get_node_ids_in_network_by_type(prop_graph, REPLY_EDGE, REPLY_NODE))
+        user_ids.update(get_users_in_network(prop_graph))
+
+    for prop_graph in real_prop_graph:
+        tweet_ids.update(get_tweets_ids_in_prop_network(prop_graph))
+        retweet_ids.update(get_node_ids_in_network_by_type(prop_graph, RETWEET_EDGE, RETWEET_NODE))
+        reply_ids.update(get_node_ids_in_network_by_type(prop_graph, REPLY_EDGE, REPLY_NODE))
+        user_ids.update(get_users_in_network(prop_graph))
+
+    print("News source : {}".format(news_source))
+    print("No. of tweets : {}".format(len(tweet_ids)))
+    print("No. of retweet ids : {}".format(len(retweet_ids)))
+    print("No. of reply ids : {}".format(len(reply_ids)))
+    print("Nol. of user : {}".format(len(user_ids)))
 
 
 if __name__ == "__main__":
     config = load_configuration("project.config")
     db = get_database_connection(config)
 
-    get_missing_rst_news_content()
+    # prop_network_stats("politifact")
+    # prop_network_stats("gossipcop")
+
+    # get_files_for_liwc_parsing()
+
+    news_source = "politifact"
+    dump_LIWC_Representation("data/baseline_data_kai/liwc/liwc_results/{}_fake_liwc_data.txt".format(news_source),
+                             "data/baseline_data_kai/liwc/extracted_featuers/{}_fake_liwc_features.csv".format(news_source))
+
+    dump_LIWC_Representation("data/baseline_data_kai/liwc/liwc_results/{}_real_liwc_data.txt".format(news_source),
+                             "data/baseline_data_kai/liwc/extracted_featuers/{}_real_liwc_features.csv".format(news_source))
+
+    # get_missing_rst_news_content()
     # get_user_aggregate_features(db, is_fake=True,
     #                             user_names=["News1Lightning", "OfeliasHeaven", "jimbradyispapa", "CraigRozniecki",
     #                                         "yojudenz",
