@@ -353,11 +353,11 @@ def dump_graphs(graphs):
 # def get_networ
 
 def write_graph_data_to_db(db, news_graphs, tweet_info):
-    for news in news_graphs:
-        db.news_prop_graphs.update({"news_id": news["news_id"]}, {"$set": news}, upsert=True)
+    # for news in news_graphs:
+    #     db.news_prop_graphs.update({"news_id": news["news_id"]}, {"$set": news}, upsert=True)
 
-    # for tweet_id, tweet_info in tweet_info.items():
-    #     db.propagation_tweet_info.update({"tweet_id": tweet_id}, {"$set": tweet_info}, upsert=True)
+    for tweet_id, tweet_info in tqdm(tweet_info.items()):
+        db.propagation_tweet_info.update({"tweet_id": tweet_id}, {"$set": tweet_info}, upsert=True)
 
 
 def dump_files_as_lines(dataset_file, out_file):
@@ -414,7 +414,7 @@ if __name__ == "__main__":
     # config = load_configuration("project.config")
     # db = get_database_connection(config)
 
-    write_graph_data_to_db(db, real_news_graphs, None)
+    write_graph_data_to_db(db, real_news_graphs, real_tweet_info)
 
     # analyze_height(news_graphs, "retweet")
     # analyze_height(news_graphs)

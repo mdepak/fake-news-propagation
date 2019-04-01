@@ -1,5 +1,6 @@
 import os
 import pickle
+import queue
 from pathlib import Path
 
 import numpy as np
@@ -10,8 +11,10 @@ from sklearn.model_selection import train_test_split
 
 from analysis_util import get_propagation_graphs, equal_samples
 from linguistic_analysis import get_all_linguistic_features, LinguisticFeatureHelper
-from structure_temp_analysis import get_all_structural_features, StructureFeatureHelper, ScienceCascadeFeatureHelper
+from structure_temp_analysis import get_all_structural_features, StructureFeatureHelper, ScienceCascadeFeatureHelper, \
+    get_first_post_time
 from temporal_analysis import get_all_temporal_features, TemporalFeatureHelper
+from util.util import tweet_node
 
 
 def get_features(news_graphs, micro_features, macro_features):
@@ -135,6 +138,58 @@ def get_dataset_feature_names(include_micro=True, include_macro=True, include_st
     return feature_names_all, short_feature_names_all
 
 
+def is_valid_graph(prop_graph: tweet_node):
+    """ Check if the prop graph has alteast one retweet or reply"""
+
+    for post_node in prop_graph.children:
+        if len(post_node.reply_children) > 0 or len(post_node.retweet_children) > 0:
+            return True
+
+    return False
+
+
+def remove_node_by_time(graph: tweet_node, limit_time):
+    start_time = get_first_post_time(graph)
+    end_time = start_time + limit_time
+
+    q = queue.Queue()
+
+    q.put(graph)
+
+    while q.qsize() != 0:
+        node = q.get()
+
+        children = node.children
+
+        for child in children:
+
+            if child.created_time <= end_time:
+                q.put(child)
+            else:
+                node.children.remove(child)
+                try:
+                    node.retweet_children.remove(child)
+                except ValueError: # Element not found in the list
+                    pass
+                try:
+                    node.reply_children.remove(child)
+                except ValueError: # Element not found in the list
+                    pass
+
+    return graph
+
+
+def filter_propagation_graphs(graphs, limit_time):
+    result_graphs = []
+
+    for prop_graph in graphs:
+        filtered_prop_graph = remove_node_by_time(prop_graph, limit_time)
+        if is_valid_graph(filtered_prop_graph):
+            result_graphs.append(filtered_prop_graph)
+
+    return result_graphs
+
+
 def get_dataset_feature_array(news_source, include_micro=True, include_macro=True, include_structural=None,
                               include_temporal=None,
                               include_linguistic=None):
@@ -191,7 +246,6 @@ def get_dataset_statistics(news_source):
     feature_group_names = ["TemporalFeatureHelper"]
 
     for idx, feature_helper in enumerate(feature_helpers):
-
         print("Feature group : {}".format(feature_group_names[idx]))
 
         fake_features = feature_helper.get_features_array(fake_prop_graph, micro_features=True,
@@ -208,7 +262,8 @@ def get_dataset_statistics(news_source):
                                                     macro_features=True,
                                                     save_folder="data/feature_images/{}".format(news_source))
 
-        feature_helper.get_feature_significance_t_tests(fake_features,real_features,micro_features=True, macro_features=True)
+        feature_helper.get_feature_significance_t_tests(fake_features, real_features, micro_features=True,
+                                                        macro_features=True)
 
         # Print the statistics of the dataset
         # print("------------Fake------------")
