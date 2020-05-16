@@ -331,6 +331,27 @@ class TemporalFeatureHelper(BaseFeatureHelper):
 
 
 if __name__ == "__main__":
+    temporal_feature_helper = TemporalFeatureHelper()
+
+    news_source = "gossipcop"
+
+    fake_prop_graph, real_prop_graph = get_propagation_graphs("data/saved_new_no_filter", news_source)
+
+    fake_prop_graph, real_prop_graph = equal_samples(fake_prop_graph, real_prop_graph)
+
+    fake_features = temporal_feature_helper.get_features_array(fake_prop_graph, micro_features=True,
+                                                               macro_features=True, news_source=news_source,
+                                                               label="fake", use_cache=True)
+    real_features = temporal_feature_helper.get_features_array(real_prop_graph, micro_features=True,
+                                                               macro_features=True, news_source=news_source,
+                                                               label="real", use_cache=True)
+
+    temporal_feature_helper.save_blox_plots_for_features(fake_feature_array=fake_features,
+                                                         real_feature_array=real_features, micro_features=True,
+                                                         macro_features=True, save_folder="data/feature_images/gossipcop_violin")
+
+    exit(1)
+
     fake_prop_graph, real_prop_graph = get_propagation_graphs("data/saved_new_no_filter", "politifact")
     fake_prop_graph, real_prop_graph = equal_samples(fake_prop_graph, real_prop_graph)
 

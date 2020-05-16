@@ -8,15 +8,15 @@ import numpy as np
 
 from analysis_util import get_propagation_graphs, equal_samples, get_numpy_array, BaseFeatureHelper, \
     get_sample_feature_value
-from stat_test import perform_t_test, plot_normal_distributions, get_box_plots
+from stat_test import perform_t_test, get_box_plots
 from util.constants import NEWS_ROOT_NODE, RETWEET_EDGE, REPLY_EDGE, RETWEET_NODE, REPLY_NODE
 from util.util import tweet_node
 
-user_id_profile_info_dict = dict()
-user_id_profile_info_dict.update(
-    pickle.load(open("data/pre_process_data/user_features/all_fake_user_profile_info.pkl", "rb")))
-user_id_profile_info_dict.update(
-    pickle.load(open("data/pre_process_data/user_features/all_real_user_profile_info.pkl", "rb")))
+# user_id_profile_info_dict = dict()
+# user_id_profile_info_dict.update(
+#     pickle.load(open("data/pre_process_data/user_features/all_fake_user_profile_info.pkl", "rb")))
+# user_id_profile_info_dict.update(
+#     pickle.load(open("data/pre_process_data/user_features/all_real_user_profile_info.pkl", "rb")))
 
 
 def get_post_tweet_deepest_cascade(prop_graph: tweet_node, edge_type=RETWEET_EDGE):
@@ -560,51 +560,51 @@ def get_fraction_of_unique_users(prop_graph: tweet_node, edge_type=None):
 
 
 def get_num_bot_users(prop_graph: tweet_node):
-    global user_id_bot_score_dict
-    retweeting_users = set(get_user_names_retweeting_in_prop_graph(prop_graph))
+    q = queue.Queue()
+    q.put(prop_graph)
 
     num_bot_users = 0
-    for user_name in retweeting_users:
-        if user_name in user_id_bot_score_dict:
-            botometer_score = user_id_bot_score_dict[user_name]
-            if "scores" in botometer_score:
-                if botometer_score['scores']['universal'] > 0.5:
+
+    while q.qsize() != 0:
+        node = q.get()
+
+        for child in node.retweet_children:
+            q.put(child)
+            if child.node_type == RETWEET_NODE and child.user_id is not None:
+                if child.botometer_score and child.botometer_score > 0.5:
                     num_bot_users += 1
-            else:
-                print("user {} not found ".format(user_name))
 
     return num_bot_users
 
 
 def get_fraction_of_bot_users_retweeting(prop_graph: tweet_node):
-    global user_id_bot_score_dict
-    retweeting_users = set(get_user_names_retweeting_in_prop_graph(prop_graph))
+    q = queue.Queue()
+    q.put(prop_graph)
 
     num_bot_users = 1
-    human_users = 1
-    for user_name in retweeting_users:
-        if user_name in user_id_bot_score_dict:
-            botometer_score = user_id_bot_score_dict[user_name]
-            if "scores" in botometer_score:
-                if botometer_score['scores']['universal'] > 0.5:
-                    num_bot_users += 1
-                else:
-                    human_users += 1
+    num_human_users = 1
 
-    return num_bot_users / (human_users+ num_bot_users)
+    while q.qsize() != 0:
+        node = q.get()
+
+        for child in node.retweet_children:
+            q.put(child)
+            if child.node_type == RETWEET_NODE and child.user_id is not None:
+                if child.botometer_score:
+                    if child.botometer_score > 0.5:
+                        num_bot_users += 1
+                    else:
+                        num_human_users += 1
+
+    return  num_bot_users / (num_human_users+ num_bot_users)
 
 
 def get_prop_graphs_num_bot_users_retweeting(prop_graphs: tweet_node, edge_type=None):
     global user_id_bot_score_dict
-    user_id_bot_score_dict = pickle.load(
-        open("data/pre_process_data/botometer_scores/all_user_botometer_scores.pkl", "rb"))
     return get_sample_feature_value(prop_graphs, get_num_bot_users)
 
 
 def get_prop_graphs_fraction_of_bot_users_retweeting(prop_graphs: tweet_node, edge_type=None):
-    global user_id_bot_score_dict
-    user_id_bot_score_dict = pickle.load(
-        open("data/pre_process_data/botometer_scores/all_user_botometer_scores.pkl", "rb"))
     return get_sample_feature_value(prop_graphs, get_fraction_of_bot_users_retweeting)
 
 
@@ -1036,13 +1036,13 @@ class StructureFeatureHelper(BaseFeatureHelper):
         return feature_names
 
     def get_features_array(self, prop_graphs, micro_features, macro_features, news_source=None, label=None,
-                           file_dir="data/train_test_data"):
+                           file_dir="data/train_test_data", use_cache = False):
         all_features = []
 
         file_name = self.get_dump_file_name(news_source, micro_features, macro_features, label, file_dir)
         data_file = Path(file_name)
 
-        if data_file.is_file():
+        if use_cache and data_file.is_file():
             return pickle.load(open(file_name, "rb"))
 
         if micro_features:
@@ -1115,13 +1115,13 @@ class ScienceCascadeFeatureHelper(BaseFeatureHelper):
         return feature_names
 
     def get_features_array(self, prop_graphs, micro_features, macro_features, news_source=None, label=None,
-                           file_dir="data/train_test_data"):
+                           file_dir="data/train_test_data", use_cache = False):
         all_features = []
 
         file_name = self.get_dump_file_name(news_source, micro_features, macro_features, label, file_dir)
         data_file = Path(file_name)
 
-        if data_file.is_file():
+        if use_cache and data_file.is_file():
             return pickle.load(open(file_name, "rb"))
 
         if micro_features:

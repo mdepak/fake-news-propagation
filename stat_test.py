@@ -197,6 +197,24 @@ def get_box_plots_mod(samples1, samples2, save_folder, title=None, file_name=Non
 
 
 if __name__ == "__main__":
-    get_box_plots_mod(np.random.rand(200, ), np.random.rand(200, ),
+    import seaborn as sns
+
+    all_data = np.transpose(np.array([np.random.rand(2000, ), np.random.rand(2000, )]))
+    labels = ['Fake', 'Real']
+    df = pd.DataFrame(all_data, columns=labels)
+    my_pal = {"Fake": "pink", "Real": "lightblue", }
+
+    plt.xticks(fontsize=12)
+    plt.yticks(fontsize=12)
+
+
+    # sns.set(style="whitegrid")
+    tips = sns.load_dataset("tips")
+    ax = sns.violinplot(data=df, palette=my_pal, width=0.3, showfliers=False)
+
+    plt.show()
+    exit(1)
+
+    get_box_plots_mod(np.random.rand(2000, ), np.random.rand(2000, ),
                       "/Users/deepak/Desktop/DMML/GitRepo/FakeNewsPropagation",
                       "T10", "T10")

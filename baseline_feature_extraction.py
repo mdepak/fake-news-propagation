@@ -246,6 +246,121 @@ def dump_ordered_rst_representation(rst_folder, news_source, fake_out_file, real
     f_out.close()
 
 
+def dump_both_ordered_rst_representation(rst_folder1, rst_folder2, news_source1, news_source2,fake_out_file1,
+                                         fake_out_file2, real_out_file1, real_out_file2):
+    dir_path = rst_folder1
+
+    all_relations = set()
+    org_files = []
+
+    org_files.extend([join(dir_path, f) for f in listdir(dir_path) if isfile(join(dir_path, f))])
+
+    dir_path = rst_folder2
+
+    org_files.extend([join(dir_path, f) for f in listdir(dir_path) if isfile(join(dir_path, f))])
+
+    News_RSTFeats = dict()
+    for file_name in org_files:
+        ID = file_name[file_name.rindex("/")+1:file_name.index('.txt')]
+        # file_name = dir_path + '/' + of
+        relation_num = dict()
+        with open(file_name) as f_rst:
+            for line in f_rst:
+                line = line.replace('\'', '')
+                line = line.replace(' ', '')
+                tmp_relation = line.split(',')[3]
+                relation = tmp_relation[:-2]
+                all_relations.add(relation)
+                if relation in relation_num:
+                    num = relation_num[relation]
+                    num += 1
+                    relation_num[relation] = num
+                else:
+                    relation_num[relation] = 1
+        News_RSTFeats[ID] = relation_num
+
+
+
+    all_relations = list(all_relations)
+    print(all_relations)
+
+    fake_ordered_sample_ids = pickle.load(
+        open("data/baseline_data/{}_{}_sample_news_ordered_ids.pkl".format(news_source1, "fake"), "rb"))
+
+    f_out = open(fake_out_file1, 'w+')
+    for news_id in fake_ordered_sample_ids:
+        # for news, rn in News_RSTFeats.items():
+        #     f_out.write(news + '\t')
+        rn = News_RSTFeats[news_id]
+        feats = []
+        for al in all_relations:
+            if al in rn:
+                num = rn[al]
+            else:
+                num = 0
+            feats.append(num)
+        f_out.write('\t'.join(str(x) for x in feats))
+        f_out.write('\n')
+    f_out.close()
+
+    fake_ordered_sample_ids = pickle.load(
+        open("data/baseline_data/{}_{}_sample_news_ordered_ids.pkl".format(news_source2, "fake"), "rb"))
+
+    f_out = open(fake_out_file2, 'w+')
+    for news_id in fake_ordered_sample_ids:
+        # for news, rn in News_RSTFeats.items():
+        #     f_out.write(news + '\t')
+        rn = News_RSTFeats[news_id]
+        feats = []
+        for al in all_relations:
+            if al in rn:
+                num = rn[al]
+            else:
+                num = 0
+            feats.append(num)
+        f_out.write('\t'.join(str(x) for x in feats))
+        f_out.write('\n')
+    f_out.close()
+
+    real_ordered_sample_ids = pickle.load(
+        open("data/baseline_data/{}_{}_sample_news_ordered_ids.pkl".format(news_source1, "real"), "rb"))
+
+    f_out = open(real_out_file1, 'w+')
+    for news_id in real_ordered_sample_ids:
+        # for news, rn in News_RSTFeats.items():
+        #     f_out.write(news + '\t')
+        rn = News_RSTFeats[news_id]
+        feats = []
+        for al in all_relations:
+            if al in rn:
+                num = rn[al]
+            else:
+                num = 0
+            feats.append(num)
+        f_out.write('\t'.join(str(x) for x in feats))
+        f_out.write('\n')
+    f_out.close()
+
+    real_ordered_sample_ids = pickle.load(
+        open("data/baseline_data/{}_{}_sample_news_ordered_ids.pkl".format(news_source2, "real"), "rb"))
+
+    f_out = open(real_out_file2, 'w+')
+    for news_id in real_ordered_sample_ids:
+        # for news, rn in News_RSTFeats.items():
+        #     f_out.write(news + '\t')
+        rn = News_RSTFeats[news_id]
+        feats = []
+        for al in all_relations:
+            if al in rn:
+                num = rn[al]
+            else:
+                num = 0
+            feats.append(num)
+        f_out.write('\t'.join(str(x) for x in feats))
+        f_out.write('\n')
+    f_out.close()
+
+
 if __name__ == "__main__":
     # get_news_ids_used_for_propagation_network("politifact")
 
@@ -254,10 +369,18 @@ if __name__ == "__main__":
 
     news_source = "gossipcop"
 
-    dump_ordered_rst_representation("data/baseline_features/rst/raw_parsed_data/gossipcop",news_source,
-                                    "data/baseline_features/rst/raw_parsed_data/gossipcop_fake_rst_features.csv",
-                                    "data/baseline_features/rst/raw_parsed_data/gossipcop_real_rst_features.csv"
-                                    )
+    dump_both_ordered_rst_representation("data/baseline_features/rst/raw_parsed_data/politifact",
+                                         "data/baseline_features/rst/raw_parsed_data/gossipcop",
+                                         "politifact", "gossipcop",
+                                         "data/baseline_features/rst_both/raw_parsed_data/politifact_fake_rst_features.csv",
+                                         "data/baseline_features/rst_both/raw_parsed_data/gossipcop_fake_rst_features.csv",
+                                         "data/baseline_features/rst_both/raw_parsed_adata/politifact_real_rst_features.csv",
+                                         "data/baseline_features/rst_both/raw_parsed_data/gossipcop_real_rst_features.csv")
+
+    # dump_ordered_rst_representation("data/baseline_features/rst/raw_parsed_data/gossipcop", news_source,
+    #                                 "data/baseline_features/rst/raw_parsed_data/gossipcop_fake_rst_features.csv",
+    #                                 "data/baseline_features/rst/raw_parsed_data/gossipcop_real_rst_features.csv"
+    #                                 )
 
     # dump_LIWC_Representation("data/baseline_features/liwc_features/LIWC2015_{}_fake_text_contents_ordered_new.txt".format(news_source),
     #                          "data/baseline_features/liwc_features/{}_fake_liwc.csv".format(news_source))

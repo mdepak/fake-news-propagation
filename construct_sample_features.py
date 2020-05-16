@@ -9,7 +9,8 @@ from sklearn.decomposition import PCA
 from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import train_test_split
 
-from analysis_util import get_propagation_graphs, equal_samples
+from analysis_util import get_propagation_graphs, equal_samples, remove_prop_graph_noise, get_noise_news_ids
+from data_processing.save_dataset import load_from_nx_graphs
 from linguistic_analysis import get_all_linguistic_features, LinguisticFeatureHelper
 from structure_temp_analysis import get_all_structural_features, StructureFeatureHelper, ScienceCascadeFeatureHelper, \
     get_first_post_time
@@ -33,7 +34,7 @@ def get_dataset(news_source, load_dataset=False, micro_features=True, macro_feat
         target_labels = pickle.load(open("{}_target_labels.pkl".format(news_source), "rb"))
 
     else:
-        fake_prop_graph, real_prop_graph = get_propagation_graphs(news_source)
+        fake_prop_graph, real_prop_graph = get_nx_propagation_graphs(news_source)
         fake_prop_graph, real_prop_graph = equal_samples(fake_prop_graph, real_prop_graph)
 
         print("fake samples len : {} real samples len : {}".format(len(fake_prop_graph), len(real_prop_graph)))
@@ -92,19 +93,20 @@ def get_dataset_file_name(file_dir, news_source, include_micro=True, include_mac
 
 def get_TPNF_dataset(out_dir, news_source, include_micro=True, include_macro=True, include_structural=None,
                      include_temporal=None,
-                     include_linguistic=None):
+                     include_linguistic=None, time_interval=None, use_cache=False):
     file_name = get_dataset_file_name(out_dir, news_source, include_micro, include_macro, include_structural,
                                       include_temporal, include_linguistic)
 
     data_file = Path(file_name)
 
-    if data_file.is_file():
+    if use_cache and data_file.is_file():
         return pickle.load(open(file_name, "rb"))
 
     else:
         fake_sample_features, real_sample_features = get_dataset_feature_array(news_source, include_micro,
                                                                                include_macro, include_structural,
-                                                                               include_temporal, include_linguistic)
+                                                                               include_temporal, include_linguistic,
+                                                                               time_interval)
 
         sample_features = np.concatenate([fake_sample_features, real_sample_features], axis=0)
         pickle.dump(sample_features, open(file_name, "wb"))
@@ -138,11 +140,11 @@ def get_dataset_feature_names(include_micro=True, include_macro=True, include_st
     return feature_names_all, short_feature_names_all
 
 
-def is_valid_graph(prop_graph: tweet_node):
+def is_valid_graph(prop_graph: tweet_node, retweet = True, reply = True):
     """ Check if the prop graph has alteast one retweet or reply"""
 
     for post_node in prop_graph.children:
-        if len(post_node.reply_children) > 0 or len(post_node.retweet_children) > 0:
+        if (retweet and len(post_node.reply_children) > 0) or (reply and len(post_node.retweet_children) > 0):
             return True
 
     return False
@@ -190,10 +192,29 @@ def filter_propagation_graphs(graphs, limit_time):
     return result_graphs
 
 
+def get_nx_propagation_graphs(data_folder, news_source):
+    fake_propagation_graphs = load_from_nx_graphs(data_folder, news_source, "fake")
+    real_propagation_graphs = load_from_nx_graphs(data_folder, news_source, "real")
+
+    print("Before filtering no. of FAKE prop graphs: {}".format(len(fake_propagation_graphs)))
+    print("Before filtering no. of REAL prop graphs: {}".format(len(real_propagation_graphs)))
+
+    # fake_propagation_graphs = remove_prop_graph_noise(fake_propagation_graphs, get_noise_news_ids())
+    # real_propagation_graphs = remove_prop_graph_noise(real_propagation_graphs, get_noise_news_ids())
+
+    # fake_news_ids = [graph.news_id for graph in fake_propagation_graphs]
+    # real_news_ids = [graph.news_id for graph in real_propagation_graphs]
+
+    print("After filtering no. of FAKE prop graphs: {}".format(len(fake_propagation_graphs)))
+    print("After filtering no. of REAL prop graphs: {}".format(len(real_propagation_graphs)))
+    print(flush=True)
+
+    return fake_propagation_graphs, real_propagation_graphs
+
 def get_dataset_feature_array(news_source, include_micro=True, include_macro=True, include_structural=None,
                               include_temporal=None,
-                              include_linguistic=None):
-    fake_prop_graph, real_prop_graph = get_propagation_graphs("data/saved_new_no_filter", news_source)
+                              include_linguistic=None, time_inteval = None):
+    fake_prop_graph, real_prop_graph = get_nx_propagation_graphs("data/nx_network_data", news_source)
 
     fake_prop_graph, real_prop_graph = equal_samples(fake_prop_graph, real_prop_graph)
 
@@ -222,6 +243,8 @@ def get_dataset_feature_array(news_source, include_micro=True, include_macro=Tru
                                                           macro_features=include_macro, news_source=news_source,
                                                           label="real")
 
+        feature_names = feature_helper.get_feature_names(micro_features= include_micro, macro_features= include_macro)
+        print(feature_names)
         if fake_features is not None and real_features is not None:
             fake_feature_all.append(fake_features)
             real_feature_all.append(real_features)

@@ -4,7 +4,7 @@ import time
 
 class tweet_node:
 
-    def __init__(self, tweet_id, text, created_time, user_name, user_id, news_id, node_type):
+    def __init__(self, tweet_id, text = None, created_time = None, user_name = None, user_id = None, news_id = None, node_type = None, botometer_score = None, sentiment= None):
         self.tweet_id = tweet_id
         self.text = text
         self.created_time = created_time
@@ -22,15 +22,17 @@ class tweet_node:
 
         self.children = set()
 
-        self.sentiment = None
-        self.stance = None
-        self.topic_vector = None
+        self.sentiment = sentiment
+        # self.stance = None
+        # self.topic_vector = None
 
-        self.original_object = None
+        # self.original_object = None
 
         self.parent_node = None
 
         self.node_type = node_type
+
+        self.botometer_score = botometer_score
 
     def __eq__(self, other):
         return self.tweet_id == other.tweet_id

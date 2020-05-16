@@ -15,15 +15,19 @@ from temporal_analysis import print_stat_values
 from util.constants import REPLY_NODE, POST_NODE
 from util.util import tweet_node
 
-all_reply_id_sentiment_score_dict = pickle.load(open("{}/all_reply_id_sentiment_result.pkl"
-                                                     .format("data/pre_process_data/vader_sentiment"), "rb"))
+all_reply_id_sentiment_score_dict = dict()
 
 
-def tweet_text_sentiment(reply_id):
-    if reply_id in all_reply_id_sentiment_score_dict:
-        return all_reply_id_sentiment_score_dict[reply_id]["compound"]
-    else:
-        return 0
+#
+# all_reply_id_sentiment_score_dict = pickle.load(open("{}/all_reply_id_sentiment_result.pkl"
+#                                                      .format("data/pre_process_data/vader_sentiment"), "rb"))
+
+
+# def tweet_text_sentiment(reply_id):
+#     if reply_id in all_reply_id_sentiment_score_dict:
+#         return all_reply_id_sentiment_score_dict[reply_id]["compound"]
+#     else:
+#         return 0
 
 
 # def tweet_text_sentiment(text):
@@ -55,8 +59,8 @@ def get_first_reply_nodes_average_sentiment(prop_graph: tweet_node):
             q.put(child)
 
             if child.node_type == REPLY_NODE and node.node_type == POST_NODE:
-                if node.text:
-                    reply_diff_values.append(tweet_text_sentiment(child.tweet_id))
+                if child.sentiment:
+                    reply_diff_values.append(child.sentiment)
 
     if len(reply_diff_values) == 0:
         return 0
@@ -76,8 +80,8 @@ def get_reply_nodes_average_sentiment(prop_graph: tweet_node):
             q.put(child)
 
         if node.node_type == REPLY_NODE:
-            if node.text:
-                reply_diff_values.append(tweet_text_sentiment(node.tweet_id))
+            if node.sentiment:
+                reply_diff_values.append(node.sentiment)
 
     if len(reply_diff_values) == 0:
         return 0
@@ -147,8 +151,7 @@ def get_reply_nodes_sentiment_ratio(prop_graph: tweet_node):
             q.put(child)
 
         if node.node_type == REPLY_NODE:
-            if node.text:
-                reply_diff_values.append(tweet_text_sentiment(node.tweet_id))
+            reply_diff_values.append(node.sentiment)
 
     if len(reply_diff_values) == 0:
         return 0
@@ -192,7 +195,7 @@ def get_all_linguistic_features(news_graphs, micro_features, macro_features):
                                      get_deepest_cascade_first_level_reply_sentiment]
 
         for function_reference in reply_function_references:
-            features_set = get_stats_for_features(news_graphs, function_reference, print=False, feature_name=None)
+            features_set = get_stats_for_features(news_graphs, function_reference, print=True, feature_name=None)
             all_features.append(features_set)
 
     return np.transpose(get_numpy_array(all_features))
@@ -236,8 +239,7 @@ class LinguisticFeatureHelper(BaseFeatureHelper):
                        get_reply_nodes_average_sentiment,
                        get_first_reply_nodes_average_sentiment,
                        get_deepest_cascade_reply_nodes_avg_sentiment,
-                       get_deepest_cascade_first_level_reply_sentiment,
-                       get_supporting_opposing_replies_ratio]
+                       get_deepest_cascade_first_level_reply_sentiment]
 
         return method_refs
 
@@ -246,13 +248,12 @@ class LinguisticFeatureHelper(BaseFeatureHelper):
                          "Average sentiment of all replies",
                          "Average sentiment of first level replies",
                          "Average sentiment of replies in deepest cascade",
-                         "Average setiment of first level replies in deepest cascade",
-                         "Supporting or opposing ratio"]
+                         "Average setiment of first level replies in deepest cascade"]
 
         return feature_names
 
     def get_micro_feature_short_names(self):
-        feature_names = ["L1", "L2", "L3", "L4", "L5","L6"]
+        feature_names = ["L1", "L2", "L3", "L4", "L5", "L6"]
         return feature_names
 
     def get_macro_feature_method_references(self):
@@ -271,13 +272,14 @@ class LinguisticFeatureHelper(BaseFeatureHelper):
         feature_names = []
         return feature_names
 
-    def get_features_array(self, prop_graphs, micro_features, macro_features, news_source=None, label=None, file_dir="data/train_test_data"):
+    def get_features_array(self, prop_graphs, micro_features, macro_features, news_source=None, label=None,
+                           file_dir="data/train_test_data", use_cache=False):
         function_refs = []
 
         file_name = self.get_dump_file_name(news_source, micro_features, macro_features, label, file_dir)
         data_file = Path(file_name)
 
-        if data_file.is_file():
+        if use_cache and data_file.is_file():
             return pickle.load(open(file_name, "rb"))
 
         if micro_features:
@@ -288,17 +290,19 @@ class LinguisticFeatureHelper(BaseFeatureHelper):
 
         all_features = []
 
-        for idx in range(len(function_refs) - 1):
+        for idx in range(len(function_refs)):
             features_set = get_sample_feature_value(prop_graphs, function_refs[idx])
             all_features.append(features_set)
 
-        all_features.append(get_feature_involving_additional_args(prop_graphs, function_refs[-1],news_source, label))
+        # all_features.append(get_feature_involving_additional_args(prop_graphs, function_refs[-1], news_source, label))
 
         feature_array = np.transpose(get_numpy_array(all_features))
+
+        # feature_array = feature_array[:, :-1]
+
         pickle.dump(feature_array, open(file_name, "wb"))
 
         return feature_array
-
 
 
 def get_feature_involving_additional_args(prop_graphs, function_reference, news_source, label):

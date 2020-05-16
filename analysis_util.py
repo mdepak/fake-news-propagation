@@ -1,14 +1,14 @@
 import errno
 import os
+import pickle
+from abc import ABCMeta, abstractmethod
 from pathlib import Path
 
 import numpy as np
-import pickle
+from sklearn.utils import resample
 
-from stat_test import get_box_plots, perform_t_test, get_box_plots_mod
-from util.util import twitter_datetime_str_to_object, tweet_node
-
-from abc import ABCMeta, abstractmethod
+from stat_test import perform_t_test, get_box_plots_mod
+from util.util import twitter_datetime_str_to_object
 
 
 class BaseFeatureHelper(metaclass=ABCMeta):
@@ -52,13 +52,13 @@ class BaseFeatureHelper(metaclass=ABCMeta):
         return "{}/{}.pkl".format(file_dir, "_".join(file_tags))
 
     def get_features_array(self, prop_graphs, micro_features, macro_features, news_source=None, label=None,
-                           file_dir="data/train_test_data"):
+                           file_dir="data/train_test_data", use_cache=False):
         function_refs = []
 
-        file_name = self.get_dump_file_name(news_source,micro_features, macro_features, label, file_dir)
+        file_name = self.get_dump_file_name(news_source, micro_features, macro_features, label, file_dir)
         data_file = Path(file_name)
 
-        if data_file.is_file():
+        if use_cache and data_file.is_file():
             return pickle.load(open(file_name, "rb"))
 
         if micro_features:
@@ -133,6 +133,37 @@ class BaseFeatureHelper(metaclass=ABCMeta):
             real_feature_values = real_feature_array[:, idx]
             print("Feature {} : {}".format(short_feature_names[idx], feature_names[idx]))
             perform_t_test(fake_feature_values, real_feature_values)
+
+    def get_feature_significance_bootstrap_tests(self, fake_feature_array, real_feature_array, micro_features=None,
+                                                 macro_features=None):
+
+        [feature_names, short_feature_names] = self.get_feature_names(micro_features, macro_features)
+
+        for idx in range(len(feature_names)):
+            fake_feature_values = fake_feature_array[:, idx]
+            real_feature_values = real_feature_array[:, idx]
+
+            perms_fake = []
+            perms_real = []
+
+            combined = np.concatenate((fake_feature_values, real_feature_values), axis=0)
+
+            print("combined shape : ", combined.shape)
+
+            for i in range(10000):
+                np.random.seed(i)
+                perms_fake.append(resample(combined, n_samples=len(fake_feature_values)))
+                perms_real.append(resample(combined, n_samples=len(real_feature_values)))
+
+            dif_bootstrap_means = (np.mean(perms_fake, axis=1) - np.mean(perms_real, axis=1))
+            print("diff bootstrap means : ", dif_bootstrap_means.shape)
+
+            obs_difs = (np.mean(fake_feature_values) - np.mean(real_feature_values))
+
+            p_value = dif_bootstrap_means[dif_bootstrap_means >= obs_difs].shape[0] / 10000
+
+            print("Feature {} : {}".format(short_feature_names[idx], feature_names[idx]))
+            print("t- value : {}   p-value : {}".format(obs_difs, p_value))
 
 
 def get_sample_feature_value(news_graps: list, get_feature_fun_ref):
