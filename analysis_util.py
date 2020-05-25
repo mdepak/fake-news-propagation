@@ -52,7 +52,7 @@ class BaseFeatureHelper(metaclass=ABCMeta):
         return "{}/{}.pkl".format(file_dir, "_".join(file_tags))
 
     def get_features_array(self, prop_graphs, micro_features, macro_features, news_source=None, label=None,
-                           file_dir="data/train_test_data", use_cache=False):
+                           file_dir="data/features", use_cache=False):
         function_refs = []
 
         file_name = self.get_dump_file_name(news_source, micro_features, macro_features, label, file_dir)
@@ -227,21 +227,21 @@ def equal_samples(sample1, sample2):
     return sample1[:target_len], sample2[:target_len]
 
 
-def get_propagation_graphs(data_folder, news_source):
-    fake_propagation_graphs = load_prop_graph(data_folder, news_source, "fake")
-    real_propagation_graphs = load_prop_graph(data_folder, news_source, "real")
-
-    print("Before filtering no. of FAKE prop graphs: {}".format(len(fake_propagation_graphs)))
-    print("Before filtering no. of REAL prop graphs: {}".format(len(real_propagation_graphs)))
-
-    fake_propagation_graphs = remove_prop_graph_noise(fake_propagation_graphs, get_noise_news_ids())
-    real_propagation_graphs = remove_prop_graph_noise(real_propagation_graphs, get_noise_news_ids())
-
-    print("After filtering no. of FAKE prop graphs: {}".format(len(fake_propagation_graphs)))
-    print("After filtering no. of REAL prop graphs: {}".format(len(real_propagation_graphs)))
-    print(flush=True)
-
-    return fake_propagation_graphs, real_propagation_graphs
+# def get_propagation_graphs(data_folder, news_source):
+#     fake_propagation_graphs = load_prop_graph(data_folder, news_source, "fake")
+#     real_propagation_graphs = load_prop_graph(data_folder, news_source, "real")
+#
+#     print("Before filtering no. of FAKE prop graphs: {}".format(len(fake_propagation_graphs)))
+#     print("Before filtering no. of REAL prop graphs: {}".format(len(real_propagation_graphs)))
+#
+#     fake_propagation_graphs = remove_prop_graph_noise(fake_propagation_graphs, get_noise_news_ids())
+#     real_propagation_graphs = remove_prop_graph_noise(real_propagation_graphs, get_noise_news_ids())
+#
+#     print("After filtering no. of FAKE prop graphs: {}".format(len(fake_propagation_graphs)))
+#     print("After filtering no. of REAL prop graphs: {}".format(len(real_propagation_graphs)))
+#     print(flush=True)
+#
+#     return fake_propagation_graphs, real_propagation_graphs
 
 
 def get_numpy_array(list_of_list):
@@ -259,7 +259,3 @@ def print_stat_values(feature_name, values, short_feature_name=""):
     print("Max value : {}".format(max(values)))
     print("Mean value : {}".format(np.mean(np.array(values))))
     print("=========================================")
-
-
-
-

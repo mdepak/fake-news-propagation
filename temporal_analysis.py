@@ -2,9 +2,7 @@ import queue
 
 import numpy as np
 
-from analysis_util import sort_tweet_node_object_by_created_time, get_propagation_graphs, equal_samples, \
-    get_numpy_array, BaseFeatureHelper
-from stat_test import perform_t_test, get_box_plots
+from analysis_util import sort_tweet_node_object_by_created_time, get_numpy_array, BaseFeatureHelper
 from structure_temp_analysis import get_first_post_time, get_post_tweet_deepest_cascade, get_max_out_degree_node
 from util.constants import RETWEET_NODE, REPLY_NODE, RETWEET_EDGE, REPLY_EDGE
 from util.util import tweet_node
@@ -88,6 +86,7 @@ def get_last_reply_by_time(news_graph: tweet_node):
 
     return max_time
 
+
 def get_avg_time_between_replies_deepest_cascade(news_graph: tweet_node):
     deep_cascade, max_height = get_post_tweet_deepest_cascade(news_graph, edge_type=REPLY_EDGE)
     return get_avg_time_between_replies(deep_cascade)
@@ -160,7 +159,7 @@ def get_time_diff_first_last_post_tweet(news_graph: tweet_node):
     post_tweets = list(news_graph.children)
 
     if len(post_tweets) <= 1:
-        print("only one tweet")
+        # print("only one tweet")
         return 0
 
     post_tweets = sort_tweet_node_object_by_created_time(post_tweets)
@@ -172,7 +171,7 @@ def get_average_time_between_post_tweets(news_graph: tweet_node):
     post_tweets = list(news_graph.children)
 
     if len(post_tweets) <= 1:
-        print("only one tweet")
+        # print("only one tweet")
         return 0
 
     post_tweets = sort_tweet_node_object_by_created_time(post_tweets)
@@ -226,10 +225,11 @@ def count_graph_with_no_retweets(news_graphs: list):
 
 
 def get_all_temporal_features(prop_graphs, micro_features, macro_features):
-    macro_features_functions = [get_average_time_between_post_tweets, get_time_diff_first_last_post_tweet,
+    macro_features_functions = [get_average_time_between_post_tweets,
+                                get_time_diff_first_last_post_tweet,
                                 get_time_diff_first_post_last_retweet,
-
-                                get_time_diff_first_post_first_retweet, get_avg_time_between_retweets,
+                                get_time_diff_first_post_first_retweet,
+                                get_avg_time_between_retweets,
                                 get_avg_retweet_time_deepest_cascade,
                                 get_time_diff_post_time_last_retweet_time_deepest_cascade]
 
@@ -291,7 +291,7 @@ class TemporalFeatureHelper(BaseFeatureHelper):
                          "Time diff between first tweet posting node and first reply node",
                          "Time diff between first tweet posting news and last reply node",
                          "Average time between adjacent reply nodes in the deepest cascade",
-                         "Time diff between first tweet posting news and \t\tlast reply node in the deepest cascade"]
+                         "Time diff between first tweet posting news and last reply node in the deepest cascade"]
 
         return feature_names
 
@@ -316,83 +316,13 @@ class TemporalFeatureHelper(BaseFeatureHelper):
                          "Time diff between first tweet and  most recent node in macro network",
                          "Time diff between first tweet posting news and max out degree node",
                          "Time difference between the first and last tweet posting news",
-                         "Time diff between tweet posting news and latest\t\tretweet node in the deepest cascade",
+                         "Time diff between tweet posting news and latest retweet node in the deepest cascade",
                          "Average time diff between the adjacent retweet nodes in deepest cascade",
                          "Average time between the tweets posted related to news",
                          "Avg time diff between the tweet post time and the first retweet time"]
 
         return feature_names
 
-    feature_names = []
-
     def get_macro_feature_short_names(self):
         feature_names = ["T1", "T2", "T3", "T4", "T5", "T6", "T7", "T8"]
         return feature_names
-
-
-if __name__ == "__main__":
-    temporal_feature_helper = TemporalFeatureHelper()
-
-    news_source = "gossipcop"
-
-    fake_prop_graph, real_prop_graph = get_propagation_graphs("data/saved_new_no_filter", news_source)
-
-    fake_prop_graph, real_prop_graph = equal_samples(fake_prop_graph, real_prop_graph)
-
-    fake_features = temporal_feature_helper.get_features_array(fake_prop_graph, micro_features=True,
-                                                               macro_features=True, news_source=news_source,
-                                                               label="fake", use_cache=True)
-    real_features = temporal_feature_helper.get_features_array(real_prop_graph, micro_features=True,
-                                                               macro_features=True, news_source=news_source,
-                                                               label="real", use_cache=True)
-
-    temporal_feature_helper.save_blox_plots_for_features(fake_feature_array=fake_features,
-                                                         real_feature_array=real_features, micro_features=True,
-                                                         macro_features=True, save_folder="data/feature_images/gossipcop_violin")
-
-    exit(1)
-
-    fake_prop_graph, real_prop_graph = get_propagation_graphs("data/saved_new_no_filter", "politifact")
-    fake_prop_graph, real_prop_graph = equal_samples(fake_prop_graph, real_prop_graph)
-
-    print("After equal random sampling")
-    print("Fake samples : {}  Real samples : {}".format(len(fake_prop_graph), len(real_prop_graph)))
-    feature_name = "Average time between the tweets posted related to news"
-    # feature_name = "time_diff_first_last_post_tweet"
-    # feature_name = "time_diff_first_post_last_retweet"
-    # feature_name = "time_diff_first_post_first_retweet"
-    # feature_name = "avg_time_between_retweets"
-
-    # feature_name = "get_avg_retweet_time_deepest_cascade"
-    # feature_name = "get_time_diff_post_time_last_retweet_time_deepest_cascade"
-    # feature_name = "get_avg_time_between_replies"
-    # feature_name = "get_time_diff_first_post_last_reply"
-    # feature_name = "get_time_diff_post_time_last_reply_time_deepest_cascade"
-
-    # function_ref = get_average_time_between_post_tweets
-    # function_ref = get_time_diff_first_last_post_tweet
-    # function_ref = get_time_diff_first_post_last_retweet
-    # function_ref = get_time_diff_first_post_first_retweet
-    # function_ref = get_avg_time_between_retweets
-    # function_ref = get_avg_retweet_time_deepest_cascade
-    # function_ref = get_time_diff_post_time_last_retweet_time_deepest_cascade
-    # function_ref = get_avg_time_between_replies
-    # function_ref = get_time_diff_first_post_last_reply
-    # function_ref = get_time_diff_post_time_last_reply_time_deepest_cascade
-
-    # count_graph_with_no_retweets(fake_prop_graph)
-    # count_graph_with_no_retweets(real_prop_graph)
-    function_ref = get_average_time_between_post_tweets
-
-    print("FAKE")
-    fake_prop_features = get_stats_for_features(fake_prop_graph, function_ref, print=True,
-                                                feature_name=feature_name)
-
-    print("REAL")
-    real_prop_features = get_stats_for_features(real_prop_graph, function_ref, print=True,
-                                                feature_name=feature_name)
-
-    get_box_plots(fake_prop_features, real_prop_features, "/Users/deepak/Desktop/DMML/GitRepo/FakeNewsPropagation",
-                  "T10", "T10")
-
-    perform_t_test(fake_prop_features, real_prop_features)

@@ -1,22 +1,14 @@
 import pickle
 import queue
 import time
-from datetime import datetime
 from pathlib import Path
 
 import numpy as np
 
-from analysis_util import get_propagation_graphs, equal_samples, get_numpy_array, BaseFeatureHelper, \
+from analysis_util import get_numpy_array, BaseFeatureHelper, \
     get_sample_feature_value
-from stat_test import perform_t_test, get_box_plots
 from util.constants import NEWS_ROOT_NODE, RETWEET_EDGE, REPLY_EDGE, RETWEET_NODE, REPLY_NODE
 from util.util import tweet_node
-
-# user_id_profile_info_dict = dict()
-# user_id_profile_info_dict.update(
-#     pickle.load(open("data/pre_process_data/user_features/all_fake_user_profile_info.pkl", "rb")))
-# user_id_profile_info_dict.update(
-#     pickle.load(open("data/pre_process_data/user_features/all_real_user_profile_info.pkl", "rb")))
 
 
 def get_post_tweet_deepest_cascade(prop_graph: tweet_node, edge_type=RETWEET_EDGE):
@@ -596,7 +588,7 @@ def get_fraction_of_bot_users_retweeting(prop_graph: tweet_node):
                     else:
                         num_human_users += 1
 
-    return  num_bot_users / (num_human_users+ num_bot_users)
+    return num_bot_users / (num_human_users + num_bot_users)
 
 
 def get_prop_graphs_num_bot_users_retweeting(prop_graphs: tweet_node, edge_type=None):
@@ -710,7 +702,6 @@ def get_min_time_to_reach_level(new_graph: tweet_node, target_depth):
 
 
 def get_unique_users_untill_level(new_graph: tweet_node, target_depth):
-    time_to_reach_depth = []
     dfs_traverse_get_users(new_graph, target_depth)
 
 
@@ -765,176 +756,6 @@ def dfs_traverse_get_users(node: tweet_node, level: int, target: int):
     return result
 
 
-def get_avg_num_followers_retweet(prop_graph):
-    global user_id_profile_info_dict
-    users = set(get_users_retweeting_in_prop_graph(prop_graph))
-    user_followers = []
-    for user_id in users:
-        if user_id in user_id_profile_info_dict:
-            user_followers.append(user_id_profile_info_dict[user_id]["followers_count"])
-
-    if len(user_followers) > 0:
-        return np.mean(user_followers)
-
-    else:
-        return 0
-
-
-def get_prop_graphs_get_avg_num_followers_retweet(prop_graphs, edge_type=RETWEET_EDGE):
-    return get_sample_feature_value(prop_graphs, get_avg_num_followers_retweet)
-
-
-def get_avg_num_followers_reply(prop_graph):
-    global user_id_profile_info_dict
-    users = set(get_users_replying_in_prop_graph(prop_graph))
-    user_followers = []
-    for user_id in users:
-        if user_id in user_id_profile_info_dict:
-            user_followers.append(user_id_profile_info_dict[user_id]["followers_count"])
-
-    if len(user_followers) > 0:
-        return np.mean(user_followers)
-
-    else:
-        return 0
-
-
-def get_prop_graphs_get_avg_num_followers_reply(prop_graphs, edge_type=RETWEET_EDGE):
-    return get_sample_feature_value(prop_graphs, get_avg_num_followers_reply)
-
-
-########
-
-def get_avg_num_status_count_retweet(prop_graph):
-    global user_id_profile_info_dict
-    users = set(get_users_retweeting_in_prop_graph(prop_graph))
-    user_followers = []
-    for user_id in users:
-        if user_id in user_id_profile_info_dict:
-            user_followers.append(user_id_profile_info_dict[user_id]["statuses_count"])
-
-    if len(user_followers) > 0:
-        return np.mean(user_followers)
-
-    else:
-        return 0
-
-
-def get_prop_graphs_get_avg_num_status_count_retweet(prop_graphs, edge_type=RETWEET_EDGE):
-    return get_sample_feature_value(prop_graphs, get_avg_num_status_count_retweet)
-
-
-def get_avg_num_status_count_reply(prop_graph):
-    global user_id_profile_info_dict
-    users = set(get_users_replying_in_prop_graph(prop_graph))
-    user_followers = []
-    for user_id in users:
-        if user_id in user_id_profile_info_dict:
-            user_followers.append(user_id_profile_info_dict[user_id]["statuses_count"])
-
-    if len(user_followers) > 0:
-        return np.mean(user_followers)
-
-    else:
-        return 0
-
-
-def get_prop_graphs_get_avg_num_status_count_reply(prop_graphs, edge_type=RETWEET_EDGE):
-    return get_sample_feature_value(prop_graphs, get_avg_num_status_count_reply)
-
-
-
-##########
-
-
-def get_avg_num_friends_retweet(prop_graph):
-    global user_id_profile_info_dict
-    users = set(get_users_retweeting_in_prop_graph(prop_graph))
-    user_followers = []
-    for user_id in users:
-        if user_id in user_id_profile_info_dict:
-            user_followers.append(user_id_profile_info_dict[user_id]["friends_count"])
-
-    if len(user_followers) > 0:
-        return np.mean(user_followers)
-
-    else:
-        return 0
-
-
-def get_prop_graphs_get_avg_num_friends_retweet(prop_graphs, edge_type=RETWEET_EDGE):
-    return get_sample_feature_value(prop_graphs, get_avg_num_friends_retweet)
-
-
-def get_avg_num_friends_reply(prop_graph):
-    global user_id_profile_info_dict
-    users = set(get_users_replying_in_prop_graph(prop_graph))
-    user_followers = []
-    for user_id in users:
-        if user_id in user_id_profile_info_dict:
-            user_followers.append(user_id_profile_info_dict[user_id]["friends_count"])
-
-    if len(user_followers) > 0:
-        return np.mean(user_followers)
-
-    else:
-        return 0
-
-
-def get_prop_graphs_get_prop_graphs_get_avg_num_friends_retweet(prop_graphs, edge_type=RETWEET_EDGE):
-    return get_sample_feature_value(prop_graphs, get_prop_graphs_get_avg_num_friends_retweet)
-
-
-def get_prop_graphs_get_avg_num_friends_reply(prop_graphs, edge_type=RETWEET_EDGE):
-    return get_sample_feature_value(prop_graphs, get_avg_num_friends_reply)
-
-
-def get_avg_user_profile_age_retweet(prop_graph):
-    global user_id_profile_info_dict
-    users = set(get_users_retweeting_in_prop_graph(prop_graph))
-    user_followers = []
-    for user_id in users:
-        if user_id in user_id_profile_info_dict:
-            create_time = user_id_profile_info_dict[user_id]['created_at']
-            date_create = datetime.strptime(create_time, '%a %b %d %H:%M:%S +0000 %Y')
-            today = datetime.now()
-            dregister = (today - date_create).days
-            user_followers.append(dregister)
-
-    if len(user_followers) > 0:
-        return np.mean(user_followers)
-
-    else:
-        return 0
-
-
-def get_prop_graphs_get_avg_user_profile_age_retweet(prop_graphs, edge_type=RETWEET_EDGE):
-    return get_sample_feature_value(prop_graphs, get_avg_user_profile_age_retweet)
-
-
-def get_avg_user_profile_age_reply(prop_graph):
-    global user_id_profile_info_dict
-    users = set(get_users_replying_in_prop_graph(prop_graph))
-    user_followers = []
-    for user_id in users:
-        if user_id in user_id_profile_info_dict:
-            create_time = user_id_profile_info_dict[user_id]['created_at']
-            date_create = datetime.strptime(create_time, '%a %b %d %H:%M:%S +0000 %Y')
-            today = datetime.now()
-            dregister = (today - date_create).days
-            user_followers.append(dregister)
-
-    if len(user_followers) > 0:
-        return np.mean(user_followers)
-
-    else:
-        return 0
-
-
-def get_prop_graphs_get_avg_user_profile_age_reply(prop_graphs, edge_type=RETWEET_EDGE):
-    return get_sample_feature_value(prop_graphs, get_avg_user_profile_age_reply)
-
-
 def get_all_structural_features(news_graphs, micro_features, macro_features):
     all_features = []
     target_edge_type = RETWEET_EDGE
@@ -964,13 +785,9 @@ class StructureFeatureHelper(BaseFeatureHelper):
         return "struct"
 
     def get_micro_feature_method_references(self):
-        # method_refs = [get_tree_heights, get_prop_graphs_node_counts, get_max_outdegrees,
-        #                get_prop_graphs_num_of_cascades_with_replies, get_prop_graphs_fraction_of_cascades_with_replies,
-        #                get_prop_graphs_num_unique_users, get_prop_graphs_fraction_of_unique_users]
-
-        method_refs = [get_tree_heights, get_prop_graphs_node_counts, get_max_outdegrees, get_prop_graphs_num_of_cascades_with_replies,
+        method_refs = [get_tree_heights, get_prop_graphs_node_counts, get_max_outdegrees,
+                       get_prop_graphs_num_of_cascades_with_replies,
                        get_prop_graphs_fraction_of_cascades_with_replies]
-        # method_refs = [get_tree_heights, get_prop_graphs_node_counts, get_max_outdegrees]
 
         return method_refs
 
@@ -984,35 +801,13 @@ class StructureFeatureHelper(BaseFeatureHelper):
         return feature_names
 
     def get_macro_feature_method_references(self):
-        # method_refs = [get_tree_heights, get_prop_graphs_node_counts, get_max_outdegrees, get_prop_graps_cascade_num,
-        #                get_max_out_degree_depths, get_prop_graphs_num_of_cascades_with_retweets,
-        #                get_prop_graphs_fraction_of_cascades_with_retweets, get_prop_graphs_num_unique_users,
-        #                get_prop_graphs_fraction_of_unique_users, get_prop_graphs_num_user_retweet_and_reply,
-        #                get_prop_graphs_ratio_of_retweet_to_reply, get_prop_graphs_num_bot_users_retweeting,
-        #                get_prop_graphs_fraction_of_bot_users_retweeting,
-        #                get_prop_graphs_min_time_to_reach_level_1,
-        #                get_prop_graphs_min_time_to_reach_level_2,
-        #                get_prop_graphs_num_unique_user_under_level_2,
-        #                get_prop_graphs_num_unique_user_under_level_4,
-        #
-        #                get_prop_graphs_get_avg_num_followers_reply,
-        #                get_prop_graphs_get_avg_num_followers_retweet,
-        #                get_prop_graphs_get_avg_num_friends_retweet,
-        #                get_prop_graphs_get_avg_num_friends_reply,
-        #                get_prop_graphs_get_avg_user_profile_age_reply,
-        #                get_prop_graphs_get_avg_user_profile_age_retweet
-        #                ]
-
         method_refs = [get_tree_heights, get_prop_graphs_node_counts, get_max_outdegrees, get_prop_graps_cascade_num,
                        get_max_out_degree_depths,
-                       get_prop_graphs_num_of_cascades_with_retweets, get_prop_graphs_fraction_of_cascades_with_retweets,
+                       get_prop_graphs_num_of_cascades_with_retweets,
+                       get_prop_graphs_fraction_of_cascades_with_retweets,
                        get_prop_graphs_num_bot_users_retweeting,
                        get_prop_graphs_fraction_of_bot_users_retweeting,
                        ]
-
-        # method_refs = [get_tree_heights, get_prop_graphs_node_counts, get_max_outdegrees, get_prop_graps_cascade_num,
-        #                get_max_out_degree_depths]
-
 
         return method_refs
 
@@ -1036,7 +831,7 @@ class StructureFeatureHelper(BaseFeatureHelper):
         return feature_names
 
     def get_features_array(self, prop_graphs, micro_features, macro_features, news_source=None, label=None,
-                           file_dir="data/train_test_data", use_cache = False):
+                           file_dir="data/features", use_cache=False):
         all_features = []
 
         file_name = self.get_dump_file_name(news_source, micro_features, macro_features, label, file_dir)
@@ -1065,198 +860,3 @@ class StructureFeatureHelper(BaseFeatureHelper):
         pickle.dump(feature_array, open(file_name, "wb"))
 
         return feature_array
-
-
-class ScienceCascadeFeatureHelper(BaseFeatureHelper):
-
-    def get_feature_group_name(self):
-        return "sci_cascade"
-
-    def get_micro_feature_method_references(self):
-        method_refs = []
-        return method_refs
-
-    def get_micro_feature_method_names(self):
-        feature_names = []
-        return feature_names
-
-    def get_micro_feature_short_names(self):
-        feature_names = []
-        return feature_names
-
-    def get_macro_feature_method_references(self):
-        method_refs = [get_tree_heights,
-                       get_prop_graphs_node_counts,
-                       get_prop_graphs_max_breadth,
-                       get_prop_graphs_min_time_to_reach_level_1,
-                       get_prop_graphs_min_time_to_reach_level_2,
-                       get_prop_graphs_num_unique_user_under_level_2,
-                       get_prop_graphs_num_unique_user_under_level_4,
-                       get_prop_graphs_fraction_of_unique_users
-                       ]
-
-        return method_refs
-
-    def get_macro_feature_method_names(self):
-        feature_names = ["Macro - Tree depth",
-                         "Macro - No of nodes",
-                         "Macro - Maximum breadth",
-                         "Avg time to reach level 1",
-                         "Avg time to reach level 2",
-                         "No. of unique users in level 2",
-                         "No.of unique users in level 4"]
-
-        return feature_names
-
-    feature_names = []
-
-    def get_macro_feature_short_names(self):
-        feature_names = ["C1", "C2", "C3", "C4", "C5", "C6", "C7", "C8"]
-        return feature_names
-
-    def get_features_array(self, prop_graphs, micro_features, macro_features, news_source=None, label=None,
-                           file_dir="data/train_test_data", use_cache = False):
-        all_features = []
-
-        file_name = self.get_dump_file_name(news_source, micro_features, macro_features, label, file_dir)
-        data_file = Path(file_name)
-
-        if use_cache and data_file.is_file():
-            return pickle.load(open(file_name, "rb"))
-
-        if micro_features:
-            target_edge_type = REPLY_EDGE
-
-            reply_function_references = self.get_micro_feature_method_references()
-            for function_ref in reply_function_references:
-                features = function_ref(prop_graphs, target_edge_type)
-                all_features.append(features)
-
-        if macro_features:
-            target_edge_type = RETWEET_EDGE
-            retweet_function_references = self.get_macro_feature_method_references()
-            for function_ref in retweet_function_references:
-                features = function_ref(prop_graphs, target_edge_type)
-                all_features.append(features)
-
-        feature_array = np.transpose(get_numpy_array(all_features))
-
-        pickle.dump(feature_array, open(file_name, "wb"))
-
-        return feature_array
-
-
-def get_all_user_involved_in_prop_graphs():
-    all_users = set()
-
-    fake_users = set()
-    real_users = set()
-
-    fake_prop_graph, real_prop_graph = get_propagation_graphs("data/saved_new_no_filter", "politifact")
-    fake_prop_graph, real_prop_graph = equal_samples(fake_prop_graph, real_prop_graph)
-
-    for prop_graph in fake_prop_graph:
-        fake_users.update(set(get_users_retweeting_in_prop_graph(prop_graph)))
-        fake_users.update(set(get_users_replying_in_prop_graph(prop_graph)))
-
-    for prop_graph in real_prop_graph:
-        real_users.update(set(get_users_retweeting_in_prop_graph(prop_graph)))
-        real_users.update(set(get_users_replying_in_prop_graph(prop_graph)))
-
-    fake_prop_graph, real_prop_graph = get_propagation_graphs("data/saved_new_no_filter", "gossipcop")
-    fake_prop_graph, real_prop_graph = equal_samples(fake_prop_graph, real_prop_graph)
-
-    for prop_graph in fake_prop_graph:
-        fake_users.update(set(get_users_retweeting_in_prop_graph(prop_graph)))
-        fake_users.update(set(get_users_replying_in_prop_graph(prop_graph)))
-
-    for prop_graph in real_prop_graph:
-        real_users.update(set(get_users_retweeting_in_prop_graph(prop_graph)))
-        real_users.update(set(get_users_replying_in_prop_graph(prop_graph)))
-
-    print("No. of users in fake prop_graphs : {}".format(len(fake_users)))
-    print("No. of users in real prop_graphs : {}".format(len(real_users)))
-
-    all_users.update(fake_users)
-    all_users.update(real_users)
-
-    print("No. of users in prop_graphs : {}".format(len(all_users)))
-
-    pickle.dump(all_users, open("all_prop_graph_user.pkl", "wb"))
-    pickle.dump(fake_users, open("all_prop_graph_fake_user.pkl", "wb"))
-    pickle.dump(real_users, open("all_prop_graph_real_user.pkl", "wb"))
-
-
-if __name__ == "__main__":
-    # get_all_user_involved_in_prop_graphs()
-
-    # exit(1)
-
-    fake_prop_graph, real_prop_graph = get_propagation_graphs("data/saved_new_no_filter", "politifact")
-
-    fake_prop_graph, real_prop_graph = equal_samples(fake_prop_graph, real_prop_graph)
-
-    fake_prop_features = get_prop_graphs_get_avg_num_status_count_reply(fake_prop_graph)
-    real_prop_features = get_prop_graphs_get_avg_num_status_count_reply(real_prop_graph)
-
-    perform_t_test(fake_prop_features, real_prop_features)
-
-    get_box_plots(fake_prop_features, real_prop_features, "/Users/deepak/Desktop/DMML/GitRepo/FakeNewsPropagation",
-                  "Fraction of bot users retweeting in macro propagation network", "test")
-
-    exit(1)
-    # get_prop_graphs_max_depth(fake_prop_graph)
-
-    structure_feature_helper = StructureFeatureHelper()
-    fake_features = structure_feature_helper.get_features_array(fake_prop_graph, micro_features=True,
-                                                                macro_features=True)
-    real_features = structure_feature_helper.get_features_array(real_prop_graph, micro_features=True,
-                                                                macro_features=True)
-
-    structure_feature_helper.save_blox_plots_for_features(fake_feature_array=fake_features,
-                                                          real_feature_array=real_features, micro_features=True,
-                                                          macro_features=True, save_folder="data/feature_images")
-
-    # Print the statistics of the dataset
-    print("------------Fake------------")
-    structure_feature_helper.print_statistics_for_all_features(feature_array=fake_features, prop_graphs=fake_prop_graph,
-                                                               micro_features=True, macro_features=True)
-
-    print("------------Real------------")
-    structure_feature_helper.print_statistics_for_all_features(feature_array=real_features, prop_graphs=fake_prop_graph,
-                                                               micro_features=True, macro_features=True)
-
-    target_edge_type = RETWEET_EDGE
-
-    # fake_prop_features = get_tree_heights(fake_prop_graph, target_edge_type)
-    # real_prop_features = get_tree_heights(real_prop_graph, target_edge_type)
-    #
-
-    fake_prop_features = get_prop_graphs_node_counts(fake_prop_graph, target_edge_type)
-    real_prop_features = get_prop_graphs_node_counts(real_prop_graph, target_edge_type)
-
-    # fake_prop_features = get_node_count_deepest_cascade(fake_prop_graph, target_edge_type)
-    # real_prop_features = get_node_count_deepest_cascade(real_prop_graph, target_edge_type)
-
-    # fake_prop_features = get_prop_graps_cascade_num(fake_prop_graph, target_edge_type)
-    # real_prop_features = get_prop_graps_cascade_num(real_prop_graph, target_edge_type)
-
-    perform_t_test(fake_prop_features, real_prop_features)
-
-    get_box_plots(fake_prop_features, real_prop_features, "Deepest cascade node height")
-
-    # plot_normal_distributions(fake_prop_features, real_prop_features)
-
-    # analyze_height(propagation_graphs, target_edge_type)
-
-    # analyze_height_by_time(propagation_graphs, target_edge_type, [60, 300, 600, 900, 18000, 36000, 72000])
-
-    # analyze_node_count(propagation_graphs, target_edge_type)
-    # analyze_node_size_by_time(propagation_graphs, target_edge_type, [60, 300, 600, 900, 18000, 36000, 72000])
-
-    # analyze_max_outdegree(propagation_graphs, target_edge_type)
-
-    # analyze_cascade(propagation_graphs, target_edge_type)
-    # analyze_cascade_num_by_time(propagation_graphs, target_edge_type, [60, 300, 600, 900, 18000, 36000, 72000] )
-
-    # exit(1)

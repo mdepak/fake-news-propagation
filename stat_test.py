@@ -1,12 +1,8 @@
-from textwrap import wrap
-
-from scipy import stats
-import numpy as np
-
 import matplotlib
-# matplotlib.use('agg')
 import matplotlib.pyplot as plt
+import numpy as np
 import pandas as pd
+from scipy import stats
 
 
 def perform_t_test(samples1, samples2):
@@ -44,10 +40,6 @@ def get_box_plots(samples1, samples2, save_folder, title=None, file_name=None):
     fig = plt.figure(1, figsize=(1, 3), frameon=False)
 
     ax1 = fig.add_subplot(111)
-    # plt.xticks(fontsize=15)
-    # plt.yticks(fontsize=15)
-    # ax.set_aspect(2)
-    # rectangular box plot
     bplot1 = ax1.boxplot(all_data,
                          vert=True,  # vertical box alignment
                          patch_artist=True,  # fill with color
@@ -55,13 +47,6 @@ def get_box_plots(samples1, samples2, save_folder, title=None, file_name=None):
                          showfliers=False,
                          positions=[0, 0.5])
 
-    # ax2 = fig.add_subplot(121)
-    # # ax.set_aspect(2)
-    # # rectangular box plot
-    # bplot2 = ax2.boxplot(all_data,
-    #                      vert=True,  # vertical box alignment
-    #                      patch_artist=True,  # fill with color
-    #                      labels=labels)  # will be used to label x-ticks
 
     # plt.title(title)
     # title = ax1.set_title("\n".join(wrap(title,50)), fontdict={'fontweight': 'semibold'})
@@ -73,21 +58,9 @@ def get_box_plots(samples1, samples2, save_folder, title=None, file_name=None):
         ax1.set_title(r'' + file_name + ' $\mathbf{^{*}}$', fontdict={'fontweight': 'bold', 'fontsize': 16})
     # fill with colors
 
-    # ax1.set_xlim(1, 0)
-
     colors = ['pink', 'lightblue', 'lightgreen']
     for patch, color in zip(bplot1['boxes'], colors):
         patch.set_facecolor(color)
-
-    # fmt = matplotlib.ticker.ScalarFormatter(useOffset=False)
-    # fmt.set_scientific(False)
-    # ax1.yaxis.set_major_formatter(fmt)
-
-    # ax1.set_yticklabels(ax1.get_yticks())
-
-    # adding horizontal grid lines
-    # plt.xlabel()
-    # plt.ylabel()
 
     fig.savefig('{}/{}.png'.format(save_folder, file_name))
 
@@ -95,7 +68,7 @@ def get_box_plots(samples1, samples2, save_folder, title=None, file_name=None):
     plt.close()
 
 
-def get_box_plots_mod(samples1, samples2, save_folder, title=None, file_name=None):
+def get_box_plots_mod(samples1, samples2, save_folder, file_name=None):
     all_data = np.transpose(np.array([samples1, samples2]))
     labels = ['Fake', 'Real']
     df = pd.DataFrame(all_data, columns=labels)
@@ -128,9 +101,8 @@ def get_box_plots_mod(samples1, samples2, save_folder, title=None, file_name=Non
 
     plt.show()
 
-    # plt.box(None)
-
     return
+
     font = {'family': 'normal',
             'weight': 'semibold',
             'size': 13}
@@ -145,9 +117,6 @@ def get_box_plots_mod(samples1, samples2, save_folder, title=None, file_name=Non
     fig = plt.figure(1, figsize=(1, 3), frameon=False)
 
     ax1 = fig.add_subplot(111)
-    # plt.xticks(fontsize=15)
-    # plt.yticks(fontsize=15)
-    # ax.set_aspect(2)
     # rectangular box plot
     bplot1 = ax1.boxplot(all_data,
                          vert=True,  # vertical box alignment
@@ -156,16 +125,6 @@ def get_box_plots_mod(samples1, samples2, save_folder, title=None, file_name=Non
                          showfliers=False,
                          positions=[0, 0.5])
 
-    # ax2 = fig.add_subplot(121)
-    # # ax.set_aspect(2)
-    # # rectangular box plot
-    # bplot2 = ax2.boxplot(all_data,
-    #                      vert=True,  # vertical box alignment
-    #                      patch_artist=True,  # fill with color
-    #                      labels=labels)  # will be used to label x-ticks
-
-    # plt.title(title)
-    # title = ax1.set_title("\n".join(wrap(title,50)), fontdict={'fontweight': 'semibold'})
     [t_val, p_val] = stats.ttest_ind(samples1, samples2, equal_var=True)
 
     if p_val > 0.05:
@@ -174,21 +133,9 @@ def get_box_plots_mod(samples1, samples2, save_folder, title=None, file_name=Non
         ax1.set_title(r'' + file_name + ' $\mathbf{^{*}}$', fontdict={'fontweight': 'bold', 'fontsize': 16})
     # fill with colors
 
-    # ax1.set_xlim(1, 0)
-
     colors = ['pink', 'lightblue', 'lightgreen']
     for patch, color in zip(bplot1['boxes'], colors):
         patch.set_facecolor(color)
-
-    # fmt = matplotlib.ticker.ScalarFormatter(useOffset=False)
-    # fmt.set_scientific(False)
-    # ax1.yaxis.set_major_formatter(fmt)
-
-    # ax1.set_yticklabels(ax1.get_yticks())
-
-    # adding horizontal grid lines
-    # plt.xlabel()
-    # plt.ylabel()
 
     fig.savefig('{}/{}.png'.format(save_folder, file_name))
 
@@ -207,14 +154,7 @@ if __name__ == "__main__":
     plt.xticks(fontsize=12)
     plt.yticks(fontsize=12)
 
-
-    # sns.set(style="whitegrid")
     tips = sns.load_dataset("tips")
     ax = sns.violinplot(data=df, palette=my_pal, width=0.3, showfliers=False)
 
     plt.show()
-    exit(1)
-
-    get_box_plots_mod(np.random.rand(2000, ), np.random.rand(2000, ),
-                      "/Users/deepak/Desktop/DMML/GitRepo/FakeNewsPropagation",
-                      "T10", "T10")

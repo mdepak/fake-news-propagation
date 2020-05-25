@@ -1,3 +1,5 @@
+import time
+
 import matplotlib
 import numpy as np
 from sklearn import preprocessing, svm
@@ -7,10 +9,7 @@ from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_sc
 from sklearn.naive_bayes import GaussianNB
 from sklearn.tree import DecisionTreeClassifier
 
-from analysis_util import get_propagation_graphs, equal_samples
-from construct_sample_features import get_TPNF_dataset, get_train_test_split, get_dataset_feature_names, \
-    filter_propagation_graphs, get_nx_propagation_graphs
-from structure_temp_analysis import ScienceCascadeFeatureHelper
+from construct_sample_features import get_TPNF_dataset, get_train_test_split, get_dataset_feature_names
 
 matplotlib.use('agg')
 import matplotlib.pyplot as plt
@@ -20,7 +19,7 @@ def get_classifier_by_name(classifier_name):
     if classifier_name == "GaussianNB":
         return GaussianNB()
     elif classifier_name == "LogisticRegression":
-        return LogisticRegression()
+        return LogisticRegression(solver='lbfgs')
     elif classifier_name == "DecisionTreeClassifier":
         return DecisionTreeClassifier()
     elif classifier_name == "RandomForestClassifier":
@@ -41,9 +40,6 @@ def train_model(classifier_name, X_train, X_test, y_train, y_test):
 
         predicted_output = classifier_clone.predict(X_test)
         accuracy, precision, recall, f1_score_val = get_metrics(y_test, predicted_output, one_hot_rep=False)
-        if f1_score_val < 0.5:
-            print("flip - classifer name {}".format(classifier_name))
-            accuracy, precision, recall, f1_score_val = get_metrics(y_test, 1 - predicted_output, one_hot_rep=False)
 
         accuracy_values.append(accuracy)
         precision_values.append(precision)
@@ -102,7 +98,7 @@ def get_basic_model_results(X_train, X_test, y_train, y_test):
 
 
 def get_classificaton_results_tpnf(data_dir, news_source, time_interval, use_cache=False):
-    include_micro = False
+    include_micro = True
     include_macro = True
 
     include_structural = True
@@ -111,49 +107,6 @@ def get_classificaton_results_tpnf(data_dir, news_source, time_interval, use_cac
 
     sample_feature_array = get_TPNF_dataset(data_dir, news_source, include_micro, include_macro, include_structural,
                                             include_temporal, include_linguistic, time_interval, use_cache=use_cache)
-
-    print("Sample feature array dimensions")
-    print(sample_feature_array.shape, flush=True)
-
-    num_samples = int(len(sample_feature_array) / 2)
-    target_labels = np.concatenate([np.ones(num_samples), np.zeros(num_samples)], axis=0)
-
-    X_train, X_test, y_train, y_test = get_train_test_split(sample_feature_array, target_labels)
-    get_basic_model_results(X_train, X_test, y_train, y_test)
-
-
-def get_science_dataset_array_time_based(news_source, time_interval=None):
-    fake_prop_graph, real_prop_graph = get_nx_propagation_graphs("data/nx_network_data", news_source)
-    fake_prop_graph, real_prop_graph = equal_samples(fake_prop_graph, real_prop_graph)
-    feature_helper = ScienceCascadeFeatureHelper()
-    include_micro = False
-    include_macro = True
-
-    if time_interval is not None:
-        time_limit = time_interval * 60 * 60
-
-        print("Time limit in seconds : {}".format(time_limit))
-
-        fake_prop_graph = filter_propagation_graphs(fake_prop_graph, time_limit, reply=False)
-        real_prop_graph = filter_propagation_graphs(real_prop_graph, time_limit, reply=False)
-
-        print("After time based filtering ")
-        print("No. of fake samples : {}  No. of real samples: {}".format(len(fake_prop_graph), len(real_prop_graph)))
-
-        fake_prop_graph, real_prop_graph = equal_samples(fake_prop_graph, real_prop_graph)
-
-    fake_features = feature_helper.get_features_array(fake_prop_graph, micro_features=include_micro,
-                                                      macro_features=include_macro, news_source=news_source,
-                                                      label="fake", use_cache=False)
-    real_features = feature_helper.get_features_array(real_prop_graph, micro_features=include_micro,
-                                                      macro_features=include_macro, news_source=news_source,
-                                                      label="real", use_cache=False)
-
-    return np.concatenate([fake_features, real_features])
-
-
-def get_classificaton_results_stnf(news_source, time_interval=None):
-    sample_feature_array = get_science_dataset_array_time_based(news_source, time_interval)
 
     print("Sample feature array dimensions")
     print(sample_feature_array.shape, flush=True)
@@ -197,13 +150,7 @@ def dump_random_forest_feature_importance(data_dir, news_source):
 
     X_train, X_test, y_train, y_test = get_train_test_split(sample_feature_array, target_labels)
 
-    # scaler = preprocessing.StandardScaler().fit(X_train)
-    #
-    # X_train = scaler.transform(X_train)
-    # X_test = scaler.transform(X_test)
-
     # Build a forest and compute the feature importances
-
     forest = ExtraTreesClassifier(n_estimators=100, random_state=0)
 
     forest.fit(X_train, y_train)
@@ -222,7 +169,6 @@ def dump_random_forest_feature_importance(data_dir, news_source):
 
     # Plot the feature importances of the forest
     plt.figure()
-    # plt.title("Feature importances - PolitiFact dataset")
 
     plt.bar(range(X_train.shape[1]), importances[indices],
             color="b", yerr=std[indices], align="center")
@@ -233,45 +179,24 @@ def dump_random_forest_feature_importance(data_dir, news_source):
     plt.show()
 
 
-def get_science_dataset_array(news_source):
-    fake_prop_graph, real_prop_graph = get_propagation_graphs("data/saved_new_no_filter", news_source)
-    fake_prop_graph, real_prop_graph = equal_samples(fake_prop_graph, real_prop_graph)
-    feature_helper = ScienceCascadeFeatureHelper()
-    include_micro = False
-    include_macro = True
+def get_classificaton_results_tpnf_by_time(news_source: str):
+    # Time Interval in hours for early-fake news detection
+    time_intervals = [3, 6, 12, 24, 36, 48, 60, 72, 84, 96]
 
-    fake_features = feature_helper.get_features_array(fake_prop_graph, micro_features=include_micro,
-                                                      macro_features=include_macro, news_source=news_source,
-                                                      label="fake")
-    real_features = feature_helper.get_features_array(real_prop_graph, micro_features=include_micro,
-                                                      macro_features=include_macro, news_source=news_source,
-                                                      label="real")
+    for time_interval in time_intervals:
+        print("=============Time Interval : {}  ==========".format(time_interval))
+        start_time = time.time()
+        get_classificaton_results_tpnf("data/features", news_source, time_interval)
 
-    return np.concatenate([fake_features, real_features])
+        print("\n\n================Exectuion time - {} ==================================\n".format(
+            time.time() - start_time))
 
 
 if __name__ == "__main__":
-    get_classificaton_results_tpnf("data/train_test_data", "gossipcop", time_interval=None, use_cache=False)
+    get_classificaton_results_tpnf("data/features", "politifact", time_interval=None, use_cache=False)
 
-    # get_classificaton_results_stnf( "politifact", time_interval=None)
+    get_classificaton_results_tpnf("data/features", "gossipcop", time_interval=None, use_cache=False)
 
-    # get_classificaton_results_tpnf("data/train_test_data", "politifact", time_interval = None)
-
-    # exit(1)
-
-    time_intervals = [3, 6, 12, 24, 36, 48, 60, 72, 84, 96]
-    # time_intervals = [3, 6]
-    # time_intervals = [None]
-
-    # for time_interval in time_intervals:
-    #     print("=============Time Interval : {}  ==========".format(time_interval))
-    #     start_time = time.time()
-    #     # get_classificaton_results_tpnf("data/train_test_data", "politifact", time_interval)
-    #     # get_classificaton_results_tpnf("data/train_test_data", "politifact", time_interval)
-    #
-    #     get_classificaton_results_stnf("politifact", time_interval)
-    #     print("\n\n================Exectuion time - {} ==================================\n".format(
-    #         time.time() - start_time))
-
-    # dump_feature_importance("data/train_test_data", "politifact")
-    # dump_random_forest_feature_importance("data/train_test_data", "gossipcop")
+    # Filter the graphs by time interval (for early fake news detection) and get the classification results
+    # get_classificaton_results_tpnf_by_time("politifact")
+    # get_classificaton_results_tpnf_by_time("gossipcop")

@@ -12,26 +12,14 @@ class tweet_node:
         self.user_id = user_id
 
         self.news_id = news_id
-        self.no_likes = None
-        self.no_retweets = None
-        self.no_replies = None
 
         self.retweet_children = []
-
         self.reply_children = []
-
         self.children = set()
 
         self.sentiment = sentiment
-        # self.stance = None
-        # self.topic_vector = None
-
-        # self.original_object = None
-
         self.parent_node = None
-
         self.node_type = node_type
-
         self.botometer_score = botometer_score
 
     def __eq__(self, other):

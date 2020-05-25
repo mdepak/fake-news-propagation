@@ -1,39 +1,18 @@
 import pickle
+import queue
 from pathlib import Path
 
 import numpy as np
-import queue
-
+from scipy.spatial.distance import cosine
 from tqdm import tqdm
 from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
-from scipy.spatial.distance import cosine
-from analysis_util import get_propagation_graphs, equal_samples, get_numpy_array, BaseFeatureHelper, \
+
+from analysis_util import get_numpy_array, BaseFeatureHelper, \
     get_sample_feature_value
-from stat_test import perform_t_test
 from structure_temp_analysis import get_post_tweet_deepest_cascade
 from temporal_analysis import print_stat_values
 from util.constants import REPLY_NODE, POST_NODE
 from util.util import tweet_node
-
-all_reply_id_sentiment_score_dict = dict()
-
-
-#
-# all_reply_id_sentiment_score_dict = pickle.load(open("{}/all_reply_id_sentiment_result.pkl"
-#                                                      .format("data/pre_process_data/vader_sentiment"), "rb"))
-
-
-# def tweet_text_sentiment(reply_id):
-#     if reply_id in all_reply_id_sentiment_score_dict:
-#         return all_reply_id_sentiment_score_dict[reply_id]["compound"]
-#     else:
-#         return 0
-
-
-# def tweet_text_sentiment(text):
-#     analyzer = SentimentIntensityAnalyzer()
-#     sentiment_result = analyzer.polarity_scores(text)
-#     return sentiment_result["compound"]
 
 
 def get_deepest_cascade_reply_nodes_avg_sentiment(prop_graph: tweet_node):
@@ -273,7 +252,7 @@ class LinguisticFeatureHelper(BaseFeatureHelper):
         return feature_names
 
     def get_features_array(self, prop_graphs, micro_features, macro_features, news_source=None, label=None,
-                           file_dir="data/train_test_data", use_cache=False):
+                           file_dir="data/features", use_cache=False):
         function_refs = []
 
         file_name = self.get_dump_file_name(news_source, micro_features, macro_features, label, file_dir)
@@ -294,11 +273,7 @@ class LinguisticFeatureHelper(BaseFeatureHelper):
             features_set = get_sample_feature_value(prop_graphs, function_refs[idx])
             all_features.append(features_set)
 
-        # all_features.append(get_feature_involving_additional_args(prop_graphs, function_refs[-1], news_source, label))
-
         feature_array = np.transpose(get_numpy_array(all_features))
-
-        # feature_array = feature_array[:, :-1]
 
         pickle.dump(feature_array, open(file_name, "wb"))
 
@@ -311,35 +286,3 @@ def get_feature_involving_additional_args(prop_graphs, function_reference, news_
         feature_values.append(function_reference(prop_graph, news_source, label))
 
     return feature_values
-
-
-if __name__ == "__main__":
-    dump_tweet_reply_sentiment("data/pre_process_data", "data/pre_process_data/vader_sentiment")
-    exit(1)
-
-    fake_prop_graph, real_prop_graph = get_propagation_graphs("politifact")
-    fake_prop_graph, real_prop_graph = equal_samples(fake_prop_graph, real_prop_graph)
-
-    print("After equal random sampling")
-    print("Fake samples : {}  Real samples : {}".format(len(fake_prop_graph), len(real_prop_graph)))
-
-    # feature_name = "get_reply_nodes_average_sentiment"
-    feature_name = "get_first_reply_nodes_average_sentiment"
-    # feature_name = "get_deepest_cascade_reply_nodes_avg_sentiment"
-    # feature_name = "get_deepest_cascade_first_level_reply_sentiment"
-
-    # function_ref = get_reply_nodes_average_sentiment
-    function_ref = get_first_reply_nodes_average_sentiment
-    # function_ref = get_deepest_cascade_reply_nodes_avg_sentiment
-    # function_ref = get_deepest_cascade_first_level_reply_sentiment
-
-    # count_graph_with_no_retweets(fake_prop_graph)
-    # count_graph_with_no_retweets(real_prop_graph)
-
-    print("FAKE")
-    fake_prop_features = get_stats_for_features(fake_prop_graph, function_ref, print=True, feature_name=feature_name)
-
-    print("REAL")
-    real_prop_features = get_stats_for_features(real_prop_graph, function_ref, print=True, feature_name=feature_name)
-
-    perform_t_test(fake_prop_features, real_prop_features)
